@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192">
+  <rect width="192" height="192" rx="32" fill="#1e1e1e"/>
+  <g transform="translate(32, 32)" fill="none" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+    <!-- People icon (CRM = Customer Relationship) -->
+    <circle cx="64" cy="48" r="20"/>
+    <path d="M96 96c0-17.7-14.3-32-32-32s-32 14.3-32 32"/>
+    <circle cx="64" cy="48" r="20" stroke-dasharray="0 0"/>
+    <path d="M96 96c0-17.7-14.3-32-32-32"/>
+    <!-- Chart bar -->
+    <rect x="80" y="80" width="12" height="30" rx="2"/>
+    <rect x="98" y="70" width="12" height="40" rx="2"/>
+    <rect x="116" y="88" width="12" height="22" rx="2"/>
+  </g>
+</svg>
