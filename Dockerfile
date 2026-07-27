@@ -1,7 +1,7 @@
 FROM php:8.4-fpm-alpine
 
 RUN apk add --no-cache \
-    curl git nginx supervisor nodejs npm zip unzip postgresql-dev oniguruma-dev \
+    curl git nginx supervisor nodejs npm zip unzip postgresql-dev oniguruma-dev libzip-dev \
     && docker-php-ext-install -j$(nproc) pdo_pgsql mbstring bcmath zip intl opcache
 
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
