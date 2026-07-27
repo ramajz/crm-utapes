@@ -10,13 +10,13 @@ WORKDIR /var/www/html
 COPY . .
 
 RUN composer install --no-dev --no-interaction --optimize-autoloader && \
-    npm ci && npm run build -- --no-interaction && \
+    npm ci && CI=true npm run build && \
     php artisan storage:link && \
     chmod -R 777 storage bootstrap/cache
 
-RUN echo 'server { listen 80; root /var/www/html/public; index index.php; charset utf-8; location / { try_files $uri $uri/ /index.php?$query_string; } location ~ \.php$ { fastcgi_pass 127.0.0.1:9000; fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name; include fastcgi_params; } }' > /etc/nginx/http.d/default.conf
+RUN printf '%s\n' 'server {' '    listen 80;' '    root /var/www/html/public;' '    index index.php;' '    charset utf-8;' '    location / { try_files $uri $uri/ /index.php?$query_string; }' '    location ~ \.php$ {' '        fastcgi_pass 127.0.0.1:9000;' '        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;' '        include fastcgi_params;' '    }' '}' > /etc/nginx/http.d/default.conf
 
-RUN echo '[supervisord] \nnodaemon=true \n[program:php-fpm] \ncommand=php-fpm \n[program:nginx] \ncommand=nginx -g "daemon off;"' > /etc/supervisord.conf
+RUN printf '%s\n' '[supervisord]' 'nodaemon=true' '' '[program:php-fpm]' 'command=php-fpm -F' '' '[program:nginx]' 'command=nginx -g "daemon off;"' > /etc/supervisord.conf
 
 EXPOSE 80
 CMD ["supervisord", "-c", "/etc/supervisord.conf"]
