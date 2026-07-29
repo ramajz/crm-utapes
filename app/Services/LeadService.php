@@ -162,7 +162,7 @@ class LeadService
         // Average response time
         $avgResponseTime = (clone $query)
             ->whereNotNull('first_replied_at')
-            ->select(DB::raw('AVG(TIMESTAMPDIFF(MINUTE, created_at, first_replied_at)) as avg_time'))
+            ->select(DB::raw('AVG(EXTRACT(EPOCH FROM (first_replied_at - created_at)) / 60) as avg_time'))
             ->value('avg_time');
 
         return [

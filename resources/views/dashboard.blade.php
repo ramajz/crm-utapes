@@ -3,7 +3,7 @@
         <div class="flex items-center justify-between">
             <div>
                 <h2 class="text-xl font-bold text-slate-900">Dashboard CRM</h2>
-                <p class="text-sm text-slate-500 mt-0.5">Overview performa bisnis Anda</p>
+                <p class="text-sm text-slate-500 mt-0.5">Analisis performa bisnis dan konversi Anda</p>
             </div>
         </div>
     </x-slot>
@@ -150,152 +150,293 @@
                 </div>
             </div>
 
-            {{-- Desktop Table --}}
-            <div class="bg-white rounded-xl shadow-sm border border-slate-200/60 hidden md:block overflow-hidden">
-                <div class="px-5 py-4 border-b border-slate-100 flex justify-between items-center">
-                    <h3 class="font-semibold text-slate-900">Daftar Leads Terbaru</h3>
-                    <a href="{{ route('leads.index') }}" class="flex items-center gap-1 text-sm font-medium text-indigo-600 hover:text-indigo-800 transition-colors">
-                        Lihat Semua
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                        </svg>
-                    </a>
+            {{-- Premium Charts Layout --}}
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {{-- Chart 1: Daily Trend --}}
+                <div class="lg:col-span-2 bg-white rounded-xl shadow-sm border border-slate-200/60 p-5">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 class="font-semibold text-slate-900">Tren Leads & Closing Harian</h3>
+                            <p class="text-xs text-slate-500 mt-0.5">Statistik pertumbuhan leads dan transaksi sukses</p>
+                        </div>
+                    </div>
+                    <div class="h-80 relative">
+                        <canvas id="dailyTrendChart"></canvas>
+                    </div>
                 </div>
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-slate-100">
-                        <thead>
-                            <tr class="bg-slate-50/50">
-                                <th class="px-5 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Order</th>
-                                <th class="px-5 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Customer</th>
-                                <th class="px-5 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Handler</th>
-                                <th class="px-5 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
-                                <th class="px-5 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Funnel</th>
-                                <th class="px-5 py-3.5 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">Total</th>
-                                <th class="px-5 py-3.5 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-100">
-                            @forelse($leads as $lead)
-                            <tr class="hover:bg-slate-50/50 transition-colors">
-                                <td class="px-5 py-4 font-mono text-xs text-slate-500">{{ $lead->order_id }}</td>
-                                <td class="px-5 py-4">
-                                    <div class="font-medium text-slate-900 text-sm">{{ $lead->customer?->name ?? '-' }}</div>
-                                    <div class="text-slate-400 text-xs mt-0.5">{{ $lead->customer?->phone ?? '-' }}</div>
-                                </td>
-                                <td class="px-5 py-4 text-sm text-slate-600">{{ $lead->handler?->name ?? '-' }}</td>
-                                <td class="px-5 py-4">
-                                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium
-                                        @switch($lead->status_fu)
-                                            @case('new') bg-slate-100 text-slate-700 @break
-                                            @case('chatted') bg-blue-50 text-blue-700 @break
-                                            @case('replied') bg-indigo-50 text-indigo-700 @break
-                                            @case('interested') bg-amber-50 text-amber-700 @break
-                                            @case('promise_transfer') bg-orange-50 text-orange-700 @break
-                                            @case('closing') bg-emerald-50 text-emerald-700 @break
-                                            @case('rejected') bg-rose-50 text-rose-700 @break
-                                            @default bg-slate-100 text-slate-700
-                                        @endswitch
-                                    ">{{ str_replace('_', ' ', ucfirst($lead->status_fu)) }}</span>
-                                </td>
-                                <td class="px-5 py-4">
-                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium
-                                        @if($lead->funnel_stage === 'hot') bg-rose-50 text-rose-700
-                                        @elseif($lead->funnel_stage === 'warm') bg-amber-50 text-amber-700
-                                        @else bg-sky-50 text-sky-700 @endif
-                                    ">
-                                        {{ ucfirst($lead->funnel_stage) }}
-                                    </span>
-                                </td>
-                                <td class="px-5 py-4 text-right font-mono text-sm font-medium text-slate-900">Rp {{ number_format($lead->total_value, 0, ',', '.') }}</td>
-                                <td class="px-5 py-4 text-right">
-                                    <a href="{{ route('leads.show', $lead) }}" class="inline-flex items-center gap-1 text-sm font-medium text-indigo-600 hover:text-indigo-800 transition-colors">
-                                        Detail
-                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                                        </svg>
-                                    </a>
-                                </td>
-                            </tr>
-                            @empty
-                            <tr>
-                                <td colspan="7" class="px-5 py-12 text-center text-slate-400">
-                                    <svg class="w-12 h-12 mx-auto mb-3 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
-                                    </svg>
-                                    <p>Tidak ada data lead pada periode ini.</p>
-                                </td>
-                            </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-                @if($leads->hasPages())
-                <div class="px-5 py-4 border-t border-slate-100">{{ $leads->links() }}</div>
-                @endif
-            </div>
 
-            {{-- Mobile Card View --}}
-            <div class="block md:hidden space-y-3">
-                @forelse($leads as $lead)
-                <div @click="window.location='{{ route('leads.show', $lead) }}'" class="bg-white rounded-xl shadow-sm border border-slate-200/60 p-4 active:scale-[0.99] transition-all duration-150 cursor-pointer hover:shadow-md">
-                    <div class="flex justify-between items-start mb-3">
-                        <div class="flex-1 min-w-0">
-                            <div class="font-semibold text-slate-900 truncate flex items-center gap-2">
-                                {{ $lead->customer?->name ?? '-' }}
-                                @if($lead->lead_type === 'repeat')
-                                <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-purple-50 text-purple-600 font-medium">Repeat</span>
-                                @endif
-                            </div>
-                            <div class="text-xs text-slate-500 mt-1 flex items-center gap-1.5">
-                                <span>{{ $lead->customer?->phone ?? '-' }}</span>
-                                @if($lead->customer?->phone)
-                                <a href="https://wa.me/{{ preg_replace('/[^0-9]/', '', $lead->customer->phone) }}" target="_blank" rel="noopener noreferrer"
-                                    onclick="event.stopPropagation()"
-                                    class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-50 text-emerald-600 hover:bg-emerald-100 hover:text-emerald-700 transition-all">
-                                    <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-                                </a>
-                                @endif
-                            </div>
-                        </div>
-                        <div class="flex gap-1.5 ml-2 flex-shrink-0">
-                            <span class="inline-flex items-center px-2 py-1 rounded-full text-[11px] font-medium
-                                @switch($lead->status_fu)
-                                    @case('new') bg-slate-100 text-slate-700 @break
-                                    @case('chatted') bg-blue-50 text-blue-700 @break
-                                    @case('replied') bg-indigo-50 text-indigo-700 @break
-                                    @case('interested') bg-amber-50 text-amber-700 @break
-                                    @case('closing') bg-emerald-50 text-emerald-700 @break
-                                    @case('rejected') bg-rose-50 text-rose-700 @break
-                                    @default bg-orange-50 text-orange-700
-                                @endswitch
-                            ">{{ str_replace('_', ' ', ucfirst($lead->status_fu)) }}</span>
-                        </div>
+                {{-- Chart 2: Funnel Stage --}}
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200/60 p-5">
+                    <div class="mb-4">
+                        <h3 class="font-semibold text-slate-900">Distribusi Funnel Stage</h3>
+                        <p class="text-xs text-slate-500 mt-0.5">Proporsi leads berdasarkan kedekatan dengan pembelian</p>
                     </div>
-                    <div class="flex justify-between items-center">
-                        <div class="flex items-center gap-2 text-xs">
-                            <span class="text-slate-500">{{ $lead->handler?->name ?? '-' }}</span>
-                            <span class="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[11px] font-medium
-                                @if($lead->funnel_stage === 'hot') bg-rose-50 text-rose-700
-                                @elseif($lead->funnel_stage === 'warm') bg-amber-50 text-amber-700
-                                @else bg-sky-50 text-sky-700 @endif
-                            ">
-                                {{ ucfirst($lead->funnel_stage) }}
-                            </span>
-                            <span class="text-slate-400">{{ $lead->timestamp->format('d M H:i') }}</span>
-                        </div>
-                        <div class="text-sm font-bold text-slate-900">Rp {{ number_format($lead->total_value, 0, ',', '.') }}</div>
+                    <div class="h-80 relative flex items-center justify-center">
+                        <canvas id="funnelChart"></canvas>
                     </div>
                 </div>
-                @empty
-                <div class="bg-white rounded-xl shadow-sm border border-slate-200/60 p-12 text-center">
-                    <svg class="w-16 h-16 mx-auto mb-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
-                    </svg>
-                    <p class="text-slate-400 font-medium">Tidak ada data</p>
-                    <p class="text-slate-400 text-sm mt-1">Belum ada lead pada periode ini.</p>
+
+                {{-- Chart 3: Status FU Distribution --}}
+                <div class="lg:col-span-2 bg-white rounded-xl shadow-sm border border-slate-200/60 p-5">
+                    <div>
+                        <h3 class="font-semibold text-slate-900">Distribusi Status Follow-up</h3>
+                        <p class="text-xs text-slate-500 mt-0.5">Breakdown detail status follow-up leads saat ini</p>
+                    </div>
+                    <div class="h-80 relative mt-4">
+                        <canvas id="statusChart"></canvas>
+                    </div>
                 </div>
-                @endforelse
+
+                {{-- Chart 4: Traffic Type Distribution --}}
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200/60 p-5">
+                    <div class="mb-4">
+                        <h3 class="font-semibold text-slate-900">Tipe Trafik (Traffic Type)</h3>
+                        <p class="text-xs text-slate-500 mt-0.5">Kategorisasi asal usul leads berdasarkan media</p>
+                    </div>
+                    <div class="h-80 relative flex items-center justify-center">
+                        <canvas id="trafficChart"></canvas>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
+
+    @push('scripts')
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Chart 1: Daily Trend
+            const dailyData = @json($dailyData);
+            const dailyLabels = dailyData.map(d => {
+                if (!d.date_val) return '-';
+                const date = new Date(d.date_val);
+                return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+            });
+            const totalLeads = dailyData.map(d => d.total_leads);
+            const closingLeads = dailyData.map(d => d.total_closing);
+
+            const ctxDaily = document.getElementById('dailyTrendChart').getContext('2d');
+            new Chart(ctxDaily, {
+                type: 'line',
+                data: {
+                    labels: dailyLabels,
+                    datasets: [
+                        {
+                            label: 'Total Leads',
+                            data: totalLeads,
+                            borderColor: '#6366f1',
+                            backgroundColor: 'rgba(99, 102, 241, 0.08)',
+                            borderWidth: 2.5,
+                            tension: 0.35,
+                            fill: true,
+                            pointBackgroundColor: '#6366f1',
+                            pointHoverRadius: 6
+                        },
+                        {
+                            label: 'Closing',
+                            data: closingLeads,
+                            borderColor: '#10b981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.08)',
+                            borderWidth: 2.5,
+                            tension: 0.35,
+                            fill: true,
+                            pointBackgroundColor: '#10b981',
+                            pointHoverRadius: 6
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                boxWidth: 12,
+                                font: {
+                                    family: 'Figtree',
+                                    size: 12,
+                                    weight: '500'
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: '#f1f5f9'
+                            },
+                            ticks: {
+                                stepSize: 1,
+                                font: {
+                                    family: 'Figtree',
+                                    size: 11
+                                }
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                font: {
+                                    family: 'Figtree',
+                                    size: 11
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Chart 2: Funnel Stage
+            const funnelData = @json($funnelData);
+            const funnelLabels = funnelData.map(d => d.funnel_stage ? d.funnel_stage.charAt(0).toUpperCase() + d.funnel_stage.slice(1) : 'Unknown');
+            const funnelCounts = funnelData.map(d => d.count);
+
+            const ctxFunnel = document.getElementById('funnelChart').getContext('2d');
+            new Chart(ctxFunnel, {
+                type: 'doughnut',
+                data: {
+                    labels: funnelLabels,
+                    datasets: [{
+                        data: funnelCounts,
+                        backgroundColor: ['#f43f5e', '#fbbf24', '#38bdf8', '#94a3b8'],
+                        borderWidth: 2,
+                        borderColor: '#ffffff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                boxWidth: 10,
+                                font: {
+                                    family: 'Figtree',
+                                    size: 11,
+                                    weight: '500'
+                                }
+                            }
+                        }
+                    },
+                    cutout: '65%'
+                }
+            });
+
+            // Chart 3: Status FU
+            const statusData = @json($statusData);
+            const statusLabels = statusData.map(d => {
+                if (!d.status_fu) return 'Unknown';
+                return d.status_fu.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase());
+            });
+            const statusCounts = statusData.map(d => d.count);
+
+            const ctxStatus = document.getElementById('statusChart').getContext('2d');
+            new Chart(ctxStatus, {
+                type: 'bar',
+                data: {
+                    labels: statusLabels,
+                    datasets: [{
+                        data: statusCounts,
+                        backgroundColor: '#6366f1',
+                        hoverBackgroundColor: '#4f46e5',
+                        borderRadius: 8,
+                        borderWidth: 0,
+                        barThickness: 24
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: '#f1f5f9'
+                            },
+                            ticks: {
+                                stepSize: 1,
+                                font: {
+                                    family: 'Figtree',
+                                    size: 11
+                                }
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                font: {
+                                    family: 'Figtree',
+                                    size: 11
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Chart 4: Traffic Type
+            const trafficData = @json($trafficData);
+            const trafficLabels = trafficData.map(d => d.traffic_type ? d.traffic_type.charAt(0).toUpperCase() + d.traffic_type.slice(1) : 'Direct/Unknown');
+            const trafficCounts = trafficData.map(d => d.count);
+
+            const ctxTraffic = document.getElementById('trafficChart').getContext('2d');
+            new Chart(ctxTraffic, {
+                type: 'polarArea',
+                data: {
+                    labels: trafficLabels,
+                    datasets: [{
+                        data: trafficCounts,
+                        backgroundColor: [
+                            'rgba(16, 185, 129, 0.75)',
+                            'rgba(139, 92, 246, 0.75)',
+                            'rgba(100, 116, 139, 0.75)',
+                            'rgba(236, 72, 153, 0.75)'
+                        ],
+                        borderWidth: 1.5,
+                        borderColor: '#ffffff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                boxWidth: 10,
+                                font: {
+                                    family: 'Figtree',
+                                    size: 11,
+                                    weight: '500'
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        r: {
+                            grid: {
+                                color: '#f1f5f9'
+                            },
+                            ticks: {
+                                display: false
+                            }
+                        }
+                    }
+                }
+            });
+        });
+    </script>
+    @endpush
 </x-app-layout>

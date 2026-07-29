@@ -65,11 +65,19 @@
                                 <div>
                                     <dt class="text-xs font-medium text-slate-500 uppercase tracking-wider">Lead Type</dt>
                                     <dd class="mt-1">
-                                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium
+                                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium
                                             @if($lead->lead_type === 'repeat') bg-purple-50 text-purple-700
                                             @else bg-emerald-50 text-emerald-700 @endif
                                         ">
-                                            @if($lead->lead_type === 'repeat') 🔄 @else 🆕 @endif
+                                            @if($lead->lead_type === 'repeat')
+                                                <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                                                </svg>
+                                            @else
+                                                <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+                                                </svg>
+                                            @endif
                                             {{ ucfirst($lead->lead_type) }}
                                         </span>
                                     </dd>
@@ -77,11 +85,19 @@
                                 <div>
                                     <dt class="text-xs font-medium text-slate-500 uppercase tracking-wider">Payment</dt>
                                     <dd class="mt-1">
-                                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium
+                                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium
                                             @if(in_array($lead->financial_status, ['paid', 'lunas'])) bg-emerald-50 text-emerald-700
                                             @else bg-rose-50 text-rose-700 @endif
                                         ">
-                                            @if(in_array($lead->financial_status, ['paid', 'lunas'])) 💰 @else 💳 @endif
+                                            @if(in_array($lead->financial_status, ['paid', 'lunas']))
+                                                <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                                                </svg>
+                                            @else
+                                                <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                                </svg>
+                                            @endif
                                             {{ ucfirst($lead->financial_status) }}
                                         </span>
                                     </dd>

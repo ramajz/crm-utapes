@@ -14,7 +14,7 @@
                         <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                     </span>
                 </div>
-                <p class="text-emerald-600 text-xs mt-1">Catat hasil chat dengan <strong>{{ $lead->customer?->name ?? 'customer' }}</strong> di bawah ini 👇</p>
+                <p class="text-emerald-600 text-xs mt-1">Catat hasil chat dengan <strong>{{ $lead->customer?->name ?? 'customer' }}</strong> di bawah ini:</p>
             </div>
             <button type="button" wire:click="clearWaCallback"
                 class="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-200 text-emerald-600 hover:bg-emerald-300 hover:text-emerald-700 flex items-center justify-center transition-colors"
@@ -90,7 +90,7 @@
         <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5">
             Notes
             @if($waCallback)
-            <span class="text-[10px] text-emerald-600 font-normal normal-case animate-pulse">← Tulis catatan chat</span>
+            <span class="text-[10px] text-emerald-600 font-normal normal-case animate-pulse">(Tulis catatan chat)</span>
             @endif
         </label>
         <textarea wire:model="notes" rows="3"

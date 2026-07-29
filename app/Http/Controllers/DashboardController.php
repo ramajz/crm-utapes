@@ -24,47 +24,58 @@ class DashboardController extends Controller
 
         if ($user->isCs() && $handler) {
             // CS Personal Dashboard
+            $query = Lead::byHandler($handler->id)->byDateRange($startDate, $endDate);
             $stats = $this->leadService->getHandlerStats(
                 $handler->id,
                 $startDate,
                 $endDate
             );
+        } else {
+            // Admin/Manager Dashboard
+            $query = Lead::query()->byDateRange($startDate, $endDate);
 
-            $leads = Lead::byHandler($handler->id)
-                ->byDateRange($startDate, $endDate)
-                ->with(['customer', 'handler'])
-                ->orderBy('timestamp', 'desc')
-                ->paginate(50);
+            $stats = [
+                'total' => (clone $query)->count(),
+                'followed_up' => (clone $query)->followedUp()->count(),
+                'not_followed_up' => (clone $query)->notFollowedUp()->count(),
+                'closing' => (clone $query)->closing()->count(),
+                'total_revenue' => (clone $query)->sum('total_value'),
+                'conversion_rate' => 0,
+            ];
 
-            return view('dashboard', compact('stats', 'leads', 'startDate', 'endDate'));
+            $total = $stats['total'];
+            $stats['conversion_rate'] = $total > 0 ? round(($stats['closing'] / $total) * 100, 1) : 0;
+
+            // Average response time (all handlers)
+            $avgResponseTime = (clone $query)
+                ->whereNotNull('first_replied_at')
+                ->select(DB::raw('AVG(EXTRACT(EPOCH FROM (first_replied_at - created_at)) / 60) as avg_time'))
+                ->value('avg_time');
+            $stats['avg_response_time_minutes'] = $avgResponseTime ? round($avgResponseTime) : null;
         }
 
-        // Admin/Manager Dashboard
-        $query = Lead::query()->byDateRange($startDate, $endDate);
+        // Fetch aggregation data for charts
+        $dailyData = (clone $query)
+            ->select(DB::raw("date(timestamp) as date_val"), DB::raw("COUNT(*) as total_leads"), DB::raw("COUNT(CASE WHEN status_fu = 'closing' THEN 1 END) as total_closing"))
+            ->groupBy(DB::raw("date(timestamp)"))
+            ->orderBy(DB::raw("date(timestamp)"))
+            ->get();
 
-        $stats = [
-            'total' => (clone $query)->count(),
-            'followed_up' => (clone $query)->followedUp()->count(),
-            'not_followed_up' => (clone $query)->notFollowedUp()->count(),
-            'closing' => (clone $query)->closing()->count(),
-            'total_revenue' => (clone $query)->sum('total_value'),
-            'conversion_rate' => 0,
-        ];
+        $funnelData = (clone $query)
+            ->select('funnel_stage', DB::raw('count(*) as count'))
+            ->groupBy('funnel_stage')
+            ->get();
 
-        $total = $stats['total'];
-        $stats['conversion_rate'] = $total > 0 ? round(($stats['closing'] / $total) * 100, 1) : 0;
+        $statusData = (clone $query)
+            ->select('status_fu', DB::raw('count(*) as count'))
+            ->groupBy('status_fu')
+            ->get();
 
-        // Average response time (all handlers)
-        $avgResponseTime = (clone $query)
-            ->whereNotNull('first_replied_at')
-            ->select(DB::raw('AVG(TIMESTAMPDIFF(MINUTE, created_at, first_replied_at)) as avg_time'))
-            ->value('avg_time');
-        $stats['avg_response_time_minutes'] = $avgResponseTime ? round($avgResponseTime) : null;
+        $trafficData = (clone $query)
+            ->select('traffic_type', DB::raw('count(*) as count'))
+            ->groupBy('traffic_type')
+            ->get();
 
-        $leads = $query->with(['customer', 'handler'])
-            ->orderBy('timestamp', 'desc')
-            ->paginate(50);
-
-        return view('dashboard', compact('stats', 'leads', 'startDate', 'endDate'));
+        return view('dashboard', compact('stats', 'startDate', 'endDate', 'dailyData', 'funnelData', 'statusData', 'trafficData'));
     }
 }

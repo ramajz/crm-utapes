@@ -121,10 +121,18 @@
                                     </span>
                                 </td>
                                 <td class="px-5 py-4">
-                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium
+                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium
                                         @if(in_array($lead->financial_status, ['paid', 'lunas'])) bg-emerald-50 text-emerald-700 @else bg-rose-50 text-rose-700 @endif
                                     ">
-                                        @if(in_array($lead->financial_status, ['paid', 'lunas'])) 💰 @else 💳 @endif
+                                        @if(in_array($lead->financial_status, ['paid', 'lunas']))
+                                            <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                                            </svg>
+                                        @else
+                                            <svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                            </svg>
+                                        @endif
                                         {{ ucfirst($lead->financial_status) }}
                                     </span>
                                 </td>
@@ -192,7 +200,13 @@
                             ">{{ str_replace('_', ' ', ucfirst($lead->status_fu)) }}</span>
                             <span class="inline-flex items-center px-2 py-1 rounded-full text-[11px] font-medium
                                 @if(in_array($lead->financial_status, ['paid', 'lunas'])) bg-emerald-50 text-emerald-700 @else bg-rose-50 text-rose-700 @endif
-                            ">{{ $lead->financial_status === 'paid' ? '💰' : '💳' }}</span>
+                            ">
+                                @if(in_array($lead->financial_status, ['paid', 'lunas']))
+                                    Paid
+                                @else
+                                    Unpaid
+                                @endif
+                            </span>
                         </div>
                     </div>
                     <div class="flex justify-between items-center">
