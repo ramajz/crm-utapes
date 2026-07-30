@@ -3,7 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Lead;
-use Barryvdh\DomPDF\Facade\Pdf;
+use Dompdf\Dompdf;
+use Dompdf\Options;
 use Illuminate\Http\Request;
 
 class LeadExportController extends Controller
@@ -52,14 +53,24 @@ class LeadExportController extends Controller
     {
         $leads = $this->filteredLeads($request)->get();
 
-        $fileName = 'leads-' . now()->format('Y-m-d-His') . '.pdf';
-
-        $pdf = Pdf::loadView('leads.export-pdf', [
+        $html = view('leads.export-pdf', [
             'leads' => $leads,
             'dateRange' => $this->getDateRangeLabel($request),
-        ]);
+        ])->render();
 
-        return $pdf->download($fileName);
+        $options = new Options();
+        $options->set('isHtml5ParserEnabled', true);
+        $options->set('isRemoteEnabled', false);
+
+        $dompdf = new Dompdf($options);
+        $dompdf->loadHtml($html);
+        $dompdf->setPaper('A4', 'landscape');
+        $dompdf->render();
+
+        return response($dompdf->output(), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="leads-' . now()->format('Y-m-d-His') . '.pdf"',
+        ]);
     }
 
     private function filteredLeads(Request $request)
