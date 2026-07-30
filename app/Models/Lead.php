@@ -90,7 +90,7 @@ class Lead extends Model
         return $query->where('status_fu', '!=', 'new');
     }
 
-    public function scopeClosing($query)
+    public function scopeClosingStatus($query)
     {
         return $query->where('status_fu', 'closing');
     }

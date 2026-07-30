@@ -5,9 +5,13 @@ namespace App\Services;
 use App\Models\Lead;
 use App\Models\LeadHistory;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 
 class LeadService
 {
+    const FINANCIAL_STATUS_CLOSING = 'paid';
+
     public function __construct(
         protected UtmParserService $utmParser,
         protected LoyaltyService $loyaltyService,
@@ -18,38 +22,54 @@ class LeadService
      */
     public function createFromData(array $data): Lead
     {
-        return DB::transaction(function () use ($data) {
+        $validated = Validator::make($data, [
+            'phone' => 'required|string|max:20',
+            'customer_name' => 'required|string|max:255',
+            'order_id' => 'required|string|max:50',
+            'total_value' => 'nullable|numeric|min:0',
+            'handler_id' => 'nullable|exists:handlers,id',
+            'financial_status' => 'nullable|string|max:20',
+            'notes' => 'nullable|string',
+            'size' => 'nullable|string|max:5',
+            'utm_source' => 'nullable|string|max:100',
+            'utm_medium' => 'nullable|string|max:100',
+            'utm_campaign' => 'nullable|string|max:100',
+            'utm_content' => 'nullable|string|max:100',
+            'timestamp' => 'nullable|date',
+        ])->validate();
+
+        return DB::transaction(function () use ($validated) {
             // Find or create customer
             $customer = $this->loyaltyService->findOrCreate(
-                $data['phone'],
-                $data['customer_name'],
-                $data['total_value'] ?? 0
+                $validated['phone'],
+                $validated['customer_name'],
+                $validated['total_value'] ?? 0
             );
 
             // Parse traffic type from UTM
             $trafficType = $this->utmParser->classify(
-                $data['utm_source'] ?? null,
-                $data['utm_medium'] ?? null
+                $validated['utm_source'] ?? null,
+                $validated['utm_medium'] ?? null
             );
 
             // Create lead
             $lead = Lead::create([
-                'order_id' => $data['order_id'],
+                'order_id' => $validated['order_id'],
                 'customer_id' => $customer->id,
-                'handler_id' => $data['handler_id'] ?? null,
-                'financial_status' => $data['financial_status'] ?? 'unpaid',
-                'total_value' => $data['total_value'] ?? 0,
+                'handler_id' => $validated['handler_id'] ?? null,
+                'financial_status' => $validated['financial_status'] ?? 'unpaid',
+                'total_value' => $validated['total_value'] ?? 0,
                 'funnel_stage' => 'cold',
                 'status_fu' => 'new',
-                'notes' => $data['notes'] ?? null,
-                'size' => $data['size'] ?? null,
-                'utm_source' => $data['utm_source'] ?? null,
-                'utm_medium' => $data['utm_medium'] ?? null,
-                'utm_campaign' => $data['utm_campaign'] ?? null,
-                'utm_content' => $data['utm_content'] ?? null,
+                'notes' => $validated['notes'] ?? null,
+                'size' => $validated['size'] ?? null,
+                'utm_source' => $validated['utm_source'] ?? null,
+                'utm_medium' => $validated['utm_medium'] ?? null,
+                'utm_campaign' => $validated['utm_campaign'] ?? null,
+                'utm_content' => $validated['utm_content'] ?? null,
                 'traffic_type' => $trafficType,
                 'lead_type' => $customer->total_orders > 1 ? 'repeat' : 'new',
-                'timestamp' => $data['timestamp'] ?? now(),
+                'timestamp' => $validated['timestamp'] ?? now(),
             ]);
 
             return $lead;
@@ -75,7 +95,7 @@ class LeadService
             // Auto-payment: if closing → paid
             $newFinancialStatus = $lead->financial_status;
             if (Lead::isClosingStatus($newStatusFu)) {
-                $newFinancialStatus = 'paid';
+                $newFinancialStatus = self::FINANCIAL_STATUS_CLOSING;
             }
 
             // First response time tracking
@@ -104,7 +124,7 @@ class LeadService
                     'new_value' => $newFunnel,
                 ];
             }
-            if (isset($data['notes']) && $lead->notes !== $data['notes']) {
+            if (array_key_exists('notes', $data) && $lead->notes !== $data['notes']) {
                 $changes[] = [
                     'lead_id' => $lead->id,
                     'user_id' => $userId,
@@ -113,7 +133,7 @@ class LeadService
                     'new_value' => $data['notes'],
                 ];
             }
-            if (isset($data['size']) && $lead->size !== $data['size']) {
+            if (array_key_exists('size', $data) && $lead->size !== $data['size']) {
                 $changes[] = [
                     'lead_id' => $lead->id,
                     'user_id' => $userId,
@@ -156,14 +176,19 @@ class LeadService
         $total = (clone $query)->count();
         $followedUp = (clone $query)->followedUp()->count();
         $notFollowedUp = (clone $query)->notFollowedUp()->count();
-        $closing = (clone $query)->closing()->count();
+        $closing = (clone $query)->closingStatus()->count();
         $totalRevenue = (clone $query)->sum('total_value');
 
-        // Average response time
-        $avgResponseTime = (clone $query)
+        // Average response time — computed in PHP for DB compatibility
+        $repliedLeads = (clone $query)
             ->whereNotNull('first_replied_at')
-            ->select(DB::raw('AVG(EXTRACT(EPOCH FROM (first_replied_at - created_at)) / 60) as avg_time'))
-            ->value('avg_time');
+            ->select('created_at', 'first_replied_at')
+            ->get();
+        $totalMinutes = 0;
+        $count = $repliedLeads->count();
+        foreach ($repliedLeads as $l) {
+            $totalMinutes += $l->created_at->diffInMinutes($l->first_replied_at);
+        }
 
         return [
             'total' => $total,
@@ -172,7 +197,7 @@ class LeadService
             'closing' => $closing,
             'total_revenue' => $totalRevenue,
             'conversion_rate' => $total > 0 ? round(($closing / $total) * 100, 1) : 0,
-            'avg_response_time_minutes' => $avgResponseTime ? round($avgResponseTime) : null,
+            'avg_response_time_minutes' => $count > 0 ? round($totalMinutes / $count) : null,
         ];
     }
 }

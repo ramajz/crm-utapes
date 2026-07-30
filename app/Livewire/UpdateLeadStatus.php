@@ -35,6 +35,7 @@ class UpdateLeadStatus extends Component
     public function loadLead(int $leadId): void
     {
         $this->lead = Lead::with(['customer', 'handler'])->findOrFail($leadId);
+        $this->authorizeAccess();
         $this->statusFu = $this->lead->status_fu;
         $this->notes = $this->lead->notes;
         $this->size = $this->lead->size ?? '';
@@ -48,10 +49,10 @@ class UpdateLeadStatus extends Component
      */
     public function triggerWaCallback(int $leadId): void
     {
-        if ($this->lead->id !== $leadId) {
-            // If the lead ID doesn't match this component, reload
+        if (!isset($this->lead) || $this->lead->id !== $leadId) {
             $this->lead = Lead::with(['customer', 'handler'])->findOrFail($leadId);
         }
+        $this->authorizeAccess();
 
         $this->statusFu = $this->lead->status_fu;
         $this->notes = $this->lead->notes;
@@ -100,6 +101,17 @@ class UpdateLeadStatus extends Component
         $this->waCallback = false;
 
         session()->flash('success', 'Status lead berhasil diupdate!');
+    }
+
+    private function authorizeAccess(): void
+    {
+        $user = auth()->user();
+        if ($user->isCs()) {
+            $handler = $user->handler;
+            if (!$handler || $this->lead->handler_id !== $handler->id) {
+                abort(403, 'Anda tidak memiliki akses ke lead ini.');
+            }
+        }
     }
 
     public function render()

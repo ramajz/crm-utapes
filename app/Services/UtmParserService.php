@@ -31,8 +31,8 @@ class UtmParserService
 
         if ($utmSource) {
             $sourceLower = strtolower($utmSource);
-            foreach ($paidSources as $source) {
-                if (str_contains($sourceLower, $source)) {
+            foreach ($paidSources as $paidSource) {
+                if (str_contains($sourceLower, $paidSource)) {
                     return 'ads';
                 }
             }

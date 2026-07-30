@@ -20,7 +20,7 @@ class Customer extends Model
     {
         return [
             'total_orders' => 'integer',
-            'total_spend' => 'integer',
+            'total_spend' => 'decimal:0',
             'first_purchase_at' => 'datetime',
             'last_purchase_at' => 'datetime',
         ];

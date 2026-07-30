@@ -38,7 +38,7 @@ class DashboardController extends Controller
                 'total' => (clone $query)->count(),
                 'followed_up' => (clone $query)->followedUp()->count(),
                 'not_followed_up' => (clone $query)->notFollowedUp()->count(),
-                'closing' => (clone $query)->closing()->count(),
+                'closing' => (clone $query)->closingStatus()->count(),
                 'total_revenue' => (clone $query)->sum('total_value'),
                 'conversion_rate' => 0,
             ];
@@ -46,12 +46,17 @@ class DashboardController extends Controller
             $total = $stats['total'];
             $stats['conversion_rate'] = $total > 0 ? round(($stats['closing'] / $total) * 100, 1) : 0;
 
-            // Average response time (all handlers)
-            $avgResponseTime = (clone $query)
+            // Average response time (all handlers) — computed in PHP for DB compatibility
+            $repliedLeads = (clone $query)
                 ->whereNotNull('first_replied_at')
-                ->select(DB::raw('AVG(EXTRACT(EPOCH FROM (first_replied_at - created_at)) / 60) as avg_time'))
-                ->value('avg_time');
-            $stats['avg_response_time_minutes'] = $avgResponseTime ? round($avgResponseTime) : null;
+                ->select('created_at', 'first_replied_at')
+                ->get();
+            $totalMinutes = 0;
+            $count = $repliedLeads->count();
+            foreach ($repliedLeads as $l) {
+                $totalMinutes += $l->created_at->diffInMinutes($l->first_replied_at);
+            }
+            $stats['avg_response_time_minutes'] = $count > 0 ? round($totalMinutes / $count) : null;
         }
 
         // Fetch aggregation data for charts

@@ -55,16 +55,18 @@ class LeadController extends Controller
         return view('leads.index', compact('leads'));
     }
 
-    public function show(Lead $lead)
+    public function show(Request $request, Lead $lead)
     {
+        $this->authorizeLeadAccess($request->user(), $lead);
         $lead->load(['customer', 'handler', 'histories.user']);
         return view('leads.show', compact('lead'));
     }
 
     public function updateStatus(Request $request, Lead $lead)
     {
+        $this->authorizeLeadAccess($request->user(), $lead);
         $validated = $request->validate([
-            'status_fu' => 'required|string|in:new,chatted,replied,interested,nunggu_gajian,promise_transfer,closing,rejected',
+            'status_fu' => 'required|string|in:' . implode(',', Lead::STATUSES),
             'notes' => 'nullable|string',
             'size' => 'nullable|string|max:5',
         ]);
@@ -84,5 +86,15 @@ class LeadController extends Controller
         }
 
         return redirect()->back()->with('success', 'Status lead berhasil diupdate');
+    }
+
+    private function authorizeLeadAccess($user, Lead $lead): void
+    {
+        if ($user->isCs()) {
+            $handler = $user->handler;
+            if (!$handler || $lead->handler_id !== $handler->id) {
+                abort(403, 'Anda tidak memiliki akses ke lead ini.');
+            }
+        }
     }
 }

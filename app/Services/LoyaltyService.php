@@ -3,17 +3,12 @@
 namespace App\Services;
 
 use App\Models\Customer;
-use App\Models\Lead;
+use Illuminate\Support\Facades\DB;
 
 class LoyaltyService
 {
     /**
      * Detect if a customer is new or repeat.
-     *
-     * Business Logic:
-     * - Search customer by phone number in customers table
-     * - If customer has previous orders (total_orders > 0) → "repeat"
-     * - If first time → "new"
      */
     public function detect(string $phone): array
     {
@@ -33,27 +28,31 @@ class LoyaltyService
     }
 
     /**
-     * Find or create a customer by phone number.
+     * Find or create a customer by phone number — uses lock to prevent race condition.
      */
     public function findOrCreate(string $phone, string $name, float $totalValue = 0): Customer
     {
-        $customer = Customer::where('phone', $phone)->first();
+        $customer = DB::transaction(function () use ($phone, $name, $totalValue) {
+            $customer = Customer::where('phone', $phone)->lockForUpdate()->first();
 
-        if ($customer) {
-            $customer->increment('total_orders');
-            $customer->increment('total_spend', $totalValue);
-            $customer->last_purchase_at = now();
-            $customer->save();
-        } else {
-            $customer = Customer::create([
-                'phone' => $phone,
-                'name' => $name,
-                'total_orders' => 1,
-                'total_spend' => $totalValue,
-                'first_purchase_at' => now(),
-                'last_purchase_at' => now(),
-            ]);
-        }
+            if ($customer) {
+                $customer->increment('total_orders');
+                $customer->increment('total_spend', $totalValue);
+                $customer->last_purchase_at = now();
+                $customer->save();
+            } else {
+                $customer = Customer::create([
+                    'phone' => $phone,
+                    'name' => $name,
+                    'total_orders' => 1,
+                    'total_spend' => $totalValue,
+                    'first_purchase_at' => now(),
+                    'last_purchase_at' => now(),
+                ]);
+            }
+
+            return $customer->fresh();
+        });
 
         return $customer;
     }
