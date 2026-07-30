@@ -145,6 +145,11 @@ class LeadService
 
             // Save history entries
             if (!empty($changes)) {
+                $now = now();
+                foreach ($changes as &$change) {
+                    $change['created_at'] = $now;
+                }
+                unset($change);
                 LeadHistory::insert($changes);
             }
 

@@ -217,7 +217,7 @@
                                 <div class="flex-1 min-w-0">
                                     <div class="flex items-center gap-2 flex-wrap">
                                         <span class="text-xs font-semibold text-slate-700 uppercase">{{ str_replace('_', ' ', $history->field_changed) }}</span>
-                                        <span class="text-[11px] text-slate-400">{{ $history->created_at->format('d M H:i') }}</span>
+                                        <span class="text-[11px] text-slate-400">{{ $history->created_at?->format('d M H:i') ?? '-' }}</span>
                                     </div>
                                     <div class="mt-1 text-sm text-slate-600">
                                         <span class="line-through text-rose-500">{{ $history->old_value ?? '-' }}</span>
