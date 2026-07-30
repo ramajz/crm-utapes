@@ -2,11 +2,8 @@
 
 use Illuminate\Support\Str;
 
-// PHP 8.5 removed PDO::MYSQL_ATTR_SSL_CA — define fallback if missing
-if (!defined('PDO::MYSQL_ATTR_SSL_CA') && !defined('Pdo\Mysql::ATTR_SSL_CA')) {
-    define('PDO::MYSQL_ATTR_SSL_CA', 1007);
-}
-$sslCaAttr = PHP_VERSION_ID >= 80500 ? constant('Pdo\\Mysql::ATTR_SSL_CA') : PDO::MYSQL_ATTR_SSL_CA;
+// PHP 8.5 removed PDO::MYSQL_ATTR_SSL_CA — use string fallback
+$sslCaAttr = 'Pdo\\Mysql::ATTR_SSL_CA';
 
 return [
 
