@@ -44,8 +44,10 @@ class ScalevWebhookController extends Controller
             $handlerName = $data['message_variables']['handler'] ?? null;
             $handlerId = null;
             if ($handlerName) {
-                $handler = Handler::where('name', $handlerName)->first();
-                $handlerId = $handler?->id;
+                $handler = Handler::firstOrCreate(
+                    ['name' => $handlerName],
+                );
+                $handlerId = $handler->id;
             }
 
             $lead = $this->leadService->createFromData([
