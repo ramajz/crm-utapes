@@ -50,7 +50,7 @@ SSL: required
 - **Server:** localhost (keuk96uqiywo5c69jv42uma4)
 - **Build pack:** Dockerfile (PHP 8.4)
 - **Port:** 80
-- **Domain:** crm-utapes.rmjz.my.id (planned)
+- **Domain:** crm.utapesseken.co (planned)
 - **15 env vars** termasuk koneksi NeonDB
 
 ### 6. Resume Coolify API Token
@@ -80,7 +80,7 @@ CS: siti@crm.com / password
 
 ## 📋 Fase Selanjutnya (Phase 2)
 
-1. Domain setup: `crm-utapes.rmjz.my.id` → Cloudflare + SSL
+1. Domain setup: `crm.utapesseken.co` → Cloudflare + SSL
 2. Webhook Scalev integration
 3. CSV Import from Google Sheets
 4. Data Migration from old system
