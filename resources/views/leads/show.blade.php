@@ -14,6 +14,16 @@
         </div>
     </x-slot>
 
+    {{-- Success Toast --}}
+    <div id="success-toast" class="hidden fixed top-4 right-4 z-50 transition-all duration-300 opacity-0">
+        <div class="bg-emerald-600 text-white px-5 py-3 rounded-xl shadow-lg flex items-center gap-2.5">
+            <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+            </svg>
+            <span class="text-sm font-medium">Data lead berhasil disimpan!</span>
+        </div>
+    </div>
+
     <div class="py-6">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -286,6 +296,20 @@
                 setTimeout(() => {
                     document.getElementById('wa-callback-notes')?.focus();
                 }, 300);
+            });
+
+            Livewire.on('statusSaved', (data) => {
+                const toast = document.getElementById('success-toast');
+                if (toast) {
+                    toast.classList.remove('hidden', 'opacity-0');
+                    toast.classList.add('opacity-100');
+                    setTimeout(() => {
+                        toast.classList.add('opacity-0');
+                        toast.classList.remove('opacity-100');
+                        setTimeout(() => toast.classList.add('hidden'), 300);
+                    }, 2500);
+                }
+                setTimeout(() => window.location.reload(), 1000);
             });
         });
 

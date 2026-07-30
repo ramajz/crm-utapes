@@ -95,12 +95,9 @@ class UpdateLeadStatus extends Component
             auth()->id()
         );
 
-        $this->dispatch('statusUpdated', leadId: $this->lead->id);
-        $this->dispatch('closeModal');
-
         $this->waCallback = false;
 
-        session()->flash('success', 'Status lead berhasil diupdate!');
+        $this->dispatch('statusSaved', leadId: $this->lead->id);
     }
 
     private function authorizeAccess(): void
