@@ -15,3 +15,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/leads/{lead}', [LeadController::class, 'show'])->name('leads.show');
     Route::post('/leads/{lead}/update-status', [LeadController::class, 'updateStatus'])->name('leads.update-status');
 
+    // Profile (Breeze)
+    Route::view('profile', 'profile')->name('profile');
+});
+
+require __DIR__.'/auth.php';
