@@ -11,6 +11,7 @@ COPY . .
 
 RUN composer install --no-dev --no-interaction --optimize-autoloader && \
     npm ci && CI=true npm run build && \
+    php artisan migrate --force && \
     php artisan storage:link && \
     chmod -R 777 storage bootstrap/cache
 
