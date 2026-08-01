@@ -42,6 +42,7 @@ class Lead extends Model
         'traffic_type',
         'lead_type',
         'first_replied_at',
+        'last_update_at',
         'timestamp',
     ];
 
@@ -51,6 +52,7 @@ class Lead extends Model
             'total_value' => 'integer',
             'timestamp' => 'datetime',
             'first_replied_at' => 'datetime',
+            'last_update_at' => 'datetime',
         ];
     }
 
@@ -77,7 +79,7 @@ class Lead extends Model
 
     public function scopeByDateRange($query, $start, $end)
     {
-        return $query->whereBetween('timestamp', [$start, $end]);
+        return $query->whereBetween('timestamp', [$start, \Carbon\Carbon::parse($end)->endOfDay()]);
     }
 
     public function scopeNotFollowedUp($query)
@@ -92,7 +94,7 @@ class Lead extends Model
 
     public function scopeClosingStatus($query)
     {
-        return $query->where('status_fu', 'closing');
+        return $query->where('financial_status', 'paid');
     }
 
     public function scopeHot($query)

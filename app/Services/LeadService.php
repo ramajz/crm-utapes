@@ -70,6 +70,7 @@ class LeadService
                 'traffic_type' => $trafficType,
                 'lead_type' => $customer->total_orders > 1 ? 'repeat' : 'new',
                 'timestamp' => $validated['timestamp'] ?? now(),
+                'last_update_at' => $validated['timestamp'] ?? now(),
             ]);
 
             return $lead;
@@ -161,6 +162,7 @@ class LeadService
                 'notes' => $data['notes'] ?? $lead->notes,
                 'size' => $data['size'] ?? $lead->size,
                 'first_replied_at' => $firstRepliedAt ?? $lead->first_replied_at,
+                'last_update_at' => now(),
             ]);
 
             return $lead->fresh();
@@ -181,18 +183,28 @@ class LeadService
         $total = (clone $query)->count();
         $followedUp = (clone $query)->followedUp()->count();
         $notFollowedUp = (clone $query)->notFollowedUp()->count();
-        $closing = (clone $query)->closingStatus()->count();
-        $totalRevenue = (clone $query)->sum('total_value');
 
-        // Average response time — computed in PHP for DB compatibility
+        // Closing & revenue berdasarkan kapan lead menjadi paid (last_update_at)
+        $closingQuery = Lead::byHandler($handlerId)->where('financial_status', 'paid');
+        if ($startDate && $endDate) {
+            $closingQuery->whereBetween('last_update_at', [$startDate, \Illuminate\Support\Carbon::parse($endDate)->endOfDay()]);
+        }
+        $closing = $closingQuery->count();
+        $totalRevenue = $closingQuery->sum('total_value');
+
+        // Average response time — computed in PHP for DB compatibility.
+        // Basis: timestamp (lead masuk) → first_replied_at, atau last_update_at
+        // (proxy waktu respon) untuk data migrasi yang tidak punya first_replied_at.
         $repliedLeads = (clone $query)
-            ->whereNotNull('first_replied_at')
-            ->select('created_at', 'first_replied_at')
+            ->where('status_fu', '!=', 'new')
+            ->whereNotNull('last_update_at')
+            ->select('timestamp', 'last_update_at', 'first_replied_at')
             ->get();
         $totalMinutes = 0;
         $count = $repliedLeads->count();
         foreach ($repliedLeads as $l) {
-            $totalMinutes += $l->created_at->diffInMinutes($l->first_replied_at);
+            $end = $l->first_replied_at ?? $l->last_update_at;
+            $totalMinutes += $l->timestamp->diffInMinutes($end);
         }
 
         return [
@@ -201,7 +213,7 @@ class LeadService
             'not_followed_up' => $notFollowedUp,
             'closing' => $closing,
             'total_revenue' => $totalRevenue,
-            'conversion_rate' => $total > 0 ? round(($closing / $total) * 100, 1) : 0,
+            'conversion_rate' => $total > 0 ? round(($closing / $total) * 100, 2) : 0,
             'avg_response_time_minutes' => $count > 0 ? round($totalMinutes / $count) : null,
         ];
     }

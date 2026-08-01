@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Lead;
 use App\Services\LeadService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
@@ -34,37 +35,71 @@ class DashboardController extends Controller
             // Admin/Manager Dashboard
             $query = Lead::query()->byDateRange($startDate, $endDate);
 
+            // Closing & revenue dihitung berdasarkan kapan lead menjadi paid (last_update_at),
+            // bukan tanggal lead masuk. Jadi lead Juni yang dibayar Juli ikut terhitung di Juli.
+            $closingQuery = Lead::query()
+                ->where('financial_status', 'paid')
+                ->whereBetween('last_update_at', [$startDate, Carbon::parse($endDate)->endOfDay()]);
+
             $stats = [
                 'total' => (clone $query)->count(),
                 'followed_up' => (clone $query)->followedUp()->count(),
                 'not_followed_up' => (clone $query)->notFollowedUp()->count(),
-                'closing' => (clone $query)->closingStatus()->count(),
-                'total_revenue' => (clone $query)->sum('total_value'),
+                'closing' => (clone $closingQuery)->count(),
+                'total_revenue' => (clone $closingQuery)->sum('total_value'),
                 'conversion_rate' => 0,
             ];
 
             $total = $stats['total'];
-            $stats['conversion_rate'] = $total > 0 ? round(($stats['closing'] / $total) * 100, 1) : 0;
+            $stats['conversion_rate'] = $total > 0 ? round(($stats['closing'] / $total) * 100, 2) : 0;
 
-            // Average response time (all handlers) — computed in PHP for DB compatibility
+            // Average response time (all handlers) — computed in PHP for DB compatibility.
+            // Basis: timestamp (lead masuk) → first_replied_at, atau last_update_at
+            // (proxy waktu respon) untuk data migrasi yang tidak punya first_replied_at.
             $repliedLeads = (clone $query)
-                ->whereNotNull('first_replied_at')
-                ->select('created_at', 'first_replied_at')
+                ->where('status_fu', '!=', 'new')
+                ->whereNotNull('last_update_at')
+                ->select('timestamp', 'last_update_at', 'first_replied_at')
                 ->get();
             $totalMinutes = 0;
             $count = $repliedLeads->count();
             foreach ($repliedLeads as $l) {
-                $totalMinutes += $l->created_at->diffInMinutes($l->first_replied_at);
+                $end = $l->first_replied_at ?? $l->last_update_at;
+                $totalMinutes += $l->timestamp->diffInMinutes($end);
             }
             $stats['avg_response_time_minutes'] = $count > 0 ? round($totalMinutes / $count) : null;
         }
 
         // Fetch aggregation data for charts
-        $dailyData = (clone $query)
-            ->select(DB::raw("date(timestamp) as date_val"), DB::raw("COUNT(*) as total_leads"), DB::raw("COUNT(CASE WHEN status_fu = 'closing' THEN 1 END) as total_closing"))
+        // Total leads dikelompokkan per tanggal masuk (timestamp),
+        // closing dikelompokkan per tanggal paid (last_update_at).
+        $leadsDaily = (clone $query)
+            ->select(DB::raw("date(timestamp) as date_val"), DB::raw("COUNT(*) as total_leads"))
             ->groupBy(DB::raw("date(timestamp)"))
             ->orderBy(DB::raw("date(timestamp)"))
-            ->get();
+            ->get()
+            ->keyBy('date_val');
+
+        $closingDaily = Lead::query()
+            ->where('financial_status', 'paid')
+            ->whereBetween('last_update_at', [$startDate, Carbon::parse($endDate)->endOfDay()])
+            ->select(DB::raw("date(last_update_at) as date_val"), DB::raw("COUNT(*) as total_closing"))
+            ->groupBy(DB::raw("date(last_update_at)"))
+            ->get()
+            ->keyBy('date_val');
+
+        $dailyData = collect();
+        $day = Carbon::parse($startDate)->startOfDay();
+        $lastDay = Carbon::parse($endDate)->endOfDay();
+        while ($day->lte($lastDay)) {
+            $key = $day->toDateString();
+            $dailyData->push([
+                'date_val' => $key,
+                'total_leads' => (int) ($leadsDaily[$key]->total_leads ?? 0),
+                'total_closing' => (int) ($closingDaily[$key]->total_closing ?? 0),
+            ]);
+            $day->addDay();
+        }
 
         $funnelData = (clone $query)
             ->select('funnel_stage', DB::raw('count(*) as count'))

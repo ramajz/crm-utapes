@@ -30,4 +30,19 @@ class Customer extends Model
     {
         return $this->hasMany(Lead::class);
     }
+
+    public function getWaNumberAttribute(): ?string
+    {
+        $digits = preg_replace('/[^0-9]/', '', $this->phone ?? '');
+
+        if (str_starts_with($digits, '0')) {
+            $digits = '62'.substr($digits, 1);
+        } elseif (str_starts_with($digits, '62')) {
+            // already correct
+        } elseif (str_starts_with($digits, '8')) {
+            $digits = '62'.$digits;
+        }
+
+        return $digits !== '' ? $digits : null;
+    }
 }

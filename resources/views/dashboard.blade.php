@@ -60,7 +60,7 @@
                         </div>
                         <div class="min-w-0">
                             <p class="text-xs font-medium text-slate-500 truncate">Total Leads</p>
-                            <p class="text-xl font-bold text-slate-900 mt-0.5">{{ $stats['total'] }}</p>
+                            <p class="text-xl font-bold text-slate-900 mt-0.5">{{ number_format($stats['total'], 0, ',', '.') }}</p>
                         </div>
                     </div>
                 </div>
@@ -73,7 +73,7 @@
                         </div>
                         <div class="min-w-0">
                             <p class="text-xs font-medium text-slate-500 truncate">Follow-up</p>
-                            <p class="text-xl font-bold text-blue-600 mt-0.5">{{ $stats['followed_up'] }}</p>
+                            <p class="text-xl font-bold text-blue-600 mt-0.5">{{ number_format($stats['followed_up'], 0, ',', '.') }}</p>
                         </div>
                     </div>
                 </div>
@@ -86,7 +86,7 @@
                         </div>
                         <div class="min-w-0">
                             <p class="text-xs font-medium text-slate-500 truncate">Belum FU</p>
-                            <p class="text-xl font-bold text-amber-600 mt-0.5">{{ $stats['not_followed_up'] }}</p>
+                            <p class="text-xl font-bold text-amber-600 mt-0.5">{{ number_format($stats['not_followed_up'], 0, ',', '.') }}</p>
                         </div>
                     </div>
                 </div>
@@ -99,7 +99,7 @@
                         </div>
                         <div class="min-w-0">
                             <p class="text-xs font-medium text-slate-500 truncate">Closing</p>
-                            <p class="text-xl font-bold text-emerald-600 mt-0.5">{{ $stats['closing'] }}</p>
+                            <p class="text-xl font-bold text-emerald-600 mt-0.5">{{ number_format($stats['closing'], 0, ',', '.') }}</p>
                         </div>
                     </div>
                 </div>

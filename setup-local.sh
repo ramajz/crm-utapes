@@ -54,9 +54,20 @@ else
     echo "✅ database.sqlite sudah ada"
 fi
 
-# Update .env dengan path yang benar
-sed -i '' "s|DB_DATABASE=.*|DB_DATABASE=$DB_PATH|" .env 2>/dev/null || \
-sed -i "s|DB_DATABASE=.*|DB_DATABASE=$DB_PATH|" .env
+# Update .env dengan koneksi SQLite yang benar
+# (ganti kalau ada, tambah kalau belum ada — mis. dari config pgsql)
+ensure_env() {
+    local key="$1" value="$2"
+    if grep -q "^${key}=" .env; then
+        sed -i '' "s|^${key}=.*|${key}=${value}|" .env 2>/dev/null || \
+        sed -i "s|^${key}=.*|${key}=${value}|" .env
+    else
+        echo "${key}=${value}" >> .env
+    fi
+}
+
+ensure_env "DB_CONNECTION" "sqlite"
+ensure_env "DB_DATABASE" "$DB_PATH"
 
 # 7. Jalankan migration + seed
 echo "[7/7] Jalankan migration & seed..."

@@ -3,7 +3,7 @@
         <div class="flex justify-between items-center">
             <div>
                 <h2 class="text-xl font-bold text-slate-900">Daftar Leads</h2>
-                <p class="text-sm text-slate-500 mt-0.5">{{ $leads->total() }} total leads</p>
+                <p class="text-sm text-slate-500 mt-0.5">{{ number_format($leads->total(), 0, ',', '.') }} total leads</p>
             </div>
         </div>
     </x-slot>
@@ -194,7 +194,7 @@
                             <div class="text-xs text-slate-500 mt-1 flex items-center gap-1.5">
                                 <span>{{ $lead->customer?->phone ?? '-' }}</span>
                                 @if($lead->customer?->phone)
-                                <a href="https://wa.me/{{ preg_replace('/[^0-9]/', '', $lead->customer->phone) }}" target="_blank" rel="noopener noreferrer"
+                                <a href="https://wa.me/{{ $lead->customer->wa_number }}" target="_blank" rel="noopener noreferrer"
                                     onclick="event.stopPropagation()"
                                     class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-50 text-emerald-600 hover:bg-emerald-100 hover:text-emerald-700 transition-all"
                                     title="Chat WhatsApp">

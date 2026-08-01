@@ -213,7 +213,7 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                             </svg>
                             <h3 class="font-semibold text-slate-900">Riwayat Perubahan</h3>
-                            <span class="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{{ $lead->histories->count() }} perubahan</span>
+                            <span class="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{{ number_format($lead->histories->count(), 0, ',', '.') }} perubahan</span>
                         </div>
                         <div class="p-6">
                             @forelse($lead->histories as $history)
@@ -271,7 +271,7 @@
                             <h3 class="font-semibold text-slate-900">Aksi Cepat</h3>
                         </div>
                         <div class="p-5">
-                            <a href="https://wa.me/{{ $lead->customer?->phone }}" target="_blank"
+                            <a href="https://wa.me/{{ $lead->customer?->wa_number }}" target="_blank"
                                 id="wa-button-{{ $lead->id }}"
                                 data-wa-lead-id="{{ $lead->id }}"
                                 class="wa-chat-button w-full inline-flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 border border-transparent rounded-xl text-sm font-semibold text-white hover:from-emerald-600 hover:to-emerald-700 transition-all duration-200 shadow-sm shadow-emerald-200 active:scale-[0.98]">
