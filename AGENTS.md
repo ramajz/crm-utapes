@@ -106,3 +106,17 @@ app/
 - Push to `main` → Coolify auto-deploys
 - Never push broken code to `main`
 - Test locally first (SQLite), then push
+
+## Investigasi Data (2026-08-02)
+
+### Temuan: NocoBase vs Scalev = SAMA untuk Paid Orders
+
+| Metrik | NocoBase | Scalev | Gap |
+|--|--|--|--|
+| Total Order (Juli) | 1.074 | - | - |
+| Paid Order (Juli) | 863 | 863 | **0** |
+| Unpaid | 211 | - | - |
+
+**Kesimpulan:** Manager menghitung TOTAL ORDER (1.074) sebagai "closing", padahal yang benar-bayar cuma 863. NocoBase dan Scalev SEBENARNYA SAMA untuk paid orders.
+
+**Action:** Gunakan kolom "Paid" (bukan "Order") untuk metrik closing/revenue.
