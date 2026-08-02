@@ -91,12 +91,15 @@
             Notes
             @if($waCallback)
             <span class="text-[10px] text-emerald-600 font-normal normal-case animate-pulse">(Tulis catatan chat)</span>
+            @else
+            <span class="text-[10px] text-slate-400 font-normal normal-case">(Klik Chat WhatsApp dulu untuk aktif)</span>
             @endif
         </label>
         <textarea wire:model="notes" rows="3"
             id="wa-callback-notes"
-            class="block w-full rounded-lg border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500/20 text-sm transition-all resize-none {{ $waCallback ? 'border-emerald-400 ring-1 ring-emerald-400/30 bg-emerald-50/30' : '' }}"
-            placeholder="Hasil follow-up..."></textarea>
+            @disabled(!$waCallback)
+            class="block w-full rounded-lg border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500/20 text-sm transition-all resize-none {{ $waCallback ? 'border-emerald-400 ring-1 ring-emerald-400/30 bg-emerald-50/30' : 'bg-slate-50 text-slate-400 cursor-not-allowed' }}"
+            placeholder="{{ $waCallback ? 'Hasil follow-up...' : 'Klik Chat WhatsApp terlebih dahulu' }}"></textarea>
     </div>
 
     {{-- Actions --}}
