@@ -20,6 +20,11 @@ class ScalevWebhookController extends Controller
 
     public function __invoke(Request $request): JsonResponse
     {
+        // Auth: shared secret dari header X-Scalev-Secret (atau Authorization: Bearer)
+        if (!$this->authorizeRequest($request)) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
         $eventType = $request->input('event');
         $data = $request->input('data');
 
@@ -84,6 +89,24 @@ class ScalevWebhookController extends Controller
 
             return response()->json(['message' => 'Webhook processing failed'], 500);
         }
+    }
+
+    private function authorizeRequest(Request $request): bool
+    {
+        $secret = config('services.scalev.webhook_secret');
+
+        // Secret belum dikonfigurasi = proteksi nonaktif (jangan dibiarkan di production)
+        if (!$secret) {
+            return true;
+        }
+
+        $provided = $request->header('X-Scalev-Secret', '');
+        if (!$provided) {
+            $auth = $request->header('Authorization', '');
+            $provided = str_starts_with($auth, 'Bearer ') ? substr($auth, 7) : $auth;
+        }
+
+        return is_string($provided) && hash_equals($secret, trim($provided));
     }
 
     private function syncLeadFromOrderCreated(array $data): void

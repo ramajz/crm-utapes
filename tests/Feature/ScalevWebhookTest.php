@@ -12,6 +12,13 @@ class ScalevWebhookTest extends TestCase
 {
     use RefreshDatabase;
 
+    private const SECRET = 'testing-secret';
+
+    private function headers(): array
+    {
+        return ['X-Scalev-Secret' => self::SECRET];
+    }
+
     private function createdPayload(string $orderId, array $extra = []): array
     {
         return array_merge_recursive([
@@ -33,9 +40,18 @@ class ScalevWebhookTest extends TestCase
         ], $extra);
     }
 
+    public function test_webhook_rejects_request_without_secret(): void
+    {
+        $response = $this->postJson('/api/webhook/scalev', $this->createdPayload('260701AUTH1'));
+
+        $response->assertStatus(401);
+        $this->assertSame(0, WebhookLog::count());
+        $this->assertSame(0, Order::count());
+    }
+
     public function test_order_created_payload_is_logged_and_synced(): void
     {
-        $response = $this->postJson('/api/webhook/scalev', $this->createdPayload('260701TESTABC'));
+        $response = $this->postJson('/api/webhook/scalev', $this->createdPayload('260701TESTABC'), $this->headers());
 
         $response->assertOk();
 
@@ -52,7 +68,7 @@ class ScalevWebhookTest extends TestCase
 
     public function test_payment_event_marks_order_and_lead_paid(): void
     {
-        $this->postJson('/api/webhook/scalev', $this->createdPayload('260701PAYXYZ'));
+        $this->postJson('/api/webhook/scalev', $this->createdPayload('260701PAYXYZ'), $this->headers());
 
         $this->postJson('/api/webhook/scalev', [
             'event' => 'order.payment_status_changed',
@@ -62,7 +78,7 @@ class ScalevWebhookTest extends TestCase
                 'paid_time' => '2026-07-15T10:00:00Z',
                 'customer' => ['phone' => '6281234567890', 'name' => 'Test Customer'],
             ],
-        ])->assertOk();
+        ], $this->headers())->assertOk();
 
         $this->assertDatabaseHas('orders', ['order_id' => '260701PAYXYZ', 'payment_status' => 'paid']);
         $this->assertDatabaseHas('leads', ['order_id' => '260701PAYXYZ', 'financial_status' => 'paid']);
@@ -72,8 +88,8 @@ class ScalevWebhookTest extends TestCase
     {
         $payload = $this->createdPayload('260701DUP123');
 
-        $this->postJson('/api/webhook/scalev', $payload)->assertOk();
-        $this->postJson('/api/webhook/scalev', $payload)->assertOk();
+        $this->postJson('/api/webhook/scalev', $payload, $this->headers())->assertOk();
+        $this->postJson('/api/webhook/scalev', $payload, $this->headers())->assertOk();
 
         $this->assertSame(1, WebhookLog::where('order_id', '260701DUP123')->count());
         $this->assertSame(1, Order::where('order_id', '260701DUP123')->count());
@@ -85,7 +101,7 @@ class ScalevWebhookTest extends TestCase
         $response = $this->postJson('/api/webhook/scalev', [
             'event' => 'business.test_event',
             'data' => [],
-        ]);
+        ], $this->headers());
 
         $response->assertOk();
         $this->assertSame(0, WebhookLog::count());

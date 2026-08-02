@@ -35,4 +35,10 @@ return [
         ],
     ],
 
+    'scalev' => [
+        // Shared secret untuk autentikasi webhook Scalev.
+        // Scalev harus mengirim header: X-Scalev-Secret: <secret>
+        'webhook_secret' => env('SCALEV_WEBHOOK_SECRET'),
+    ],
+
 ];
