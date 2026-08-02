@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Lead;
 use App\Models\LeadHistory;
+use App\Models\Order;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
@@ -184,13 +185,13 @@ class LeadService
         $followedUp = (clone $query)->followedUp()->count();
         $notFollowedUp = (clone $query)->notFollowedUp()->count();
 
-        // Closing & revenue berdasarkan kapan lead menjadi paid (last_update_at)
-        $closingQuery = Lead::byHandler($handlerId)->where('financial_status', 'paid');
+        // Closing & revenue berdasarkan kapan order dibayar (orders.paid_time, sumber Scalev)
+        $closingQuery = Order::where('handler_id', $handlerId);
         if ($startDate && $endDate) {
-            $closingQuery->whereBetween('last_update_at', [$startDate, \Illuminate\Support\Carbon::parse($endDate)->endOfDay()]);
+            $closingQuery->whereBetween('paid_time', [$startDate, \Illuminate\Support\Carbon::parse($endDate)->endOfDay()]);
         }
         $closing = $closingQuery->count();
-        $totalRevenue = $closingQuery->sum('total_value');
+        $totalRevenue = $closingQuery->sum('gross_revenue');
 
         // Average response time — computed in PHP for DB compatibility.
         // Basis: timestamp (lead masuk) → first_replied_at, atau last_update_at

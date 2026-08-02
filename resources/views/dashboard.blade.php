@@ -198,6 +198,59 @@
                     </div>
                 </div>
             </div>
+
+            {{-- Per-CS Performance --}}
+            @if($handlerStats->isNotEmpty())
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200/60 mb-6 overflow-hidden">
+                    <div class="p-5 border-b border-slate-200/60 flex items-center justify-between">
+                        <div>
+                            <h3 class="font-semibold text-slate-900">Performa Per CS</h3>
+                            <p class="text-xs text-slate-500 mt-0.5">Rekap leads masuk, follow-up, closing, dan revenue tiap CS pada periode terpilih</p>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead class="bg-slate-50 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                                <tr>
+                                    <th class="px-5 py-3">CS</th>
+                                    <th class="px-5 py-3 text-right">Total Leads</th>
+                                    <th class="px-5 py-3 text-right">Follow-up</th>
+                                    <th class="px-5 py-3 text-right">Belum FU</th>
+                                    <th class="px-5 py-3 text-right">Closing</th>
+                                    <th class="px-5 py-3 text-right">Revenue</th>
+                                    <th class="px-5 py-3 text-right">Konversi</th>
+                                    <th class="px-5 py-3 text-right">Avg Respon</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                @foreach($handlerStats as $h)
+                                    <tr class="hover:bg-slate-50/60 transition-colors">
+                                        <td class="px-5 py-3.5">
+                                            <div class="flex items-center gap-2.5">
+                                                <div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xs font-bold">{{ $h['initial'] }}</div>
+                                                <span class="font-semibold text-slate-800">{{ $h['name'] }}</span>
+                                            </div>
+                                        </td>
+                                        <td class="px-5 py-3.5 text-right font-semibold text-slate-900">{{ number_format($h['total'], 0, ',', '.') }}</td>
+                                        <td class="px-5 py-3.5 text-right text-blue-600 font-medium">{{ number_format($h['followed_up'], 0, ',', '.') }}</td>
+                                        <td class="px-5 py-3.5 text-right text-amber-600 font-medium">{{ number_format($h['not_followed_up'], 0, ',', '.') }}</td>
+                                        <td class="px-5 py-3.5 text-right text-emerald-600 font-semibold">{{ number_format($h['closing'], 0, ',', '.') }}</td>
+                                        <td class="px-5 py-3.5 text-right font-medium text-purple-600">Rp {{ number_format($h['revenue'], 0, ',', '.') }}</td>
+                                        <td class="px-5 py-3.5 text-right font-semibold text-slate-700">{{ $h['conversion_rate'] }}%</td>
+                                        <td class="px-5 py-3.5 text-right text-slate-600">
+                                            @if($h['avg_response_time_minutes'] !== null)
+                                                {{ number_format($h['avg_response_time_minutes'], 0, ',', '.') }} mnt
+                                            @else
+                                                —
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            @endif
         </div>
     </div>
 
