@@ -120,3 +120,24 @@ app/
 **Kesimpulan:** Manager menghitung TOTAL ORDER (1.074) sebagai "closing", padahal yang benar-bayar cuma 863. NocoBase dan Scalev SEBENARNYA SAMA untuk paid orders.
 
 **Action:** Gunakan kolom "Paid" (bukan "Order") untuk metrik closing/revenue.
+
+## Investigasi Data (2026-08-02) — Update
+
+### Temuan: Dua Sistem Independent
+
+| Metrik | NocoBase | CRM Leads | Scalev |
+|--|--|--|--|
+| Format ID | `260701xxxx` | `ORD-xxxxx` | `ORD-xxxxx` |
+| Juli (Lm+Kd) | 1.283 | 187 | (dashboard 863) |
+| Matched by WA | **0** | **0** | - |
+
+**Kesimpulan:**
+- NocoBase = ERP manual input (semua penjualan, termasuk walk-in/repeat)
+- CRM-Utapes = lead management (hanya lead dari Scalev LP)
+- Dua sistem independent, zero overlap
+- Angka "863 paid" dari dashboard perlu diverifikasi sumbernya
+
+### NocoBase API Access
+- Login: POST `/api/auth:signIn` (yusrilkhakiki@gmail.com)
+- Filter: GET + URL encode, operator `$includes`, `$ne`, `$startsWith`
+- Collections: `tb_transaksi_order`, `departments`, `tb_customer`
