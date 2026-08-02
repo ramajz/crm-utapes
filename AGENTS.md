@@ -10,6 +10,34 @@ Stack: Laravel 11 + Livewire + Alpine.js + Tailwind CSS.
 - **Auth**: Laravel Breeze (Livewire)
 - **Frontend**: Livewire components + Alpine.js
 
+## Data Paid / Closing — Source of Truth (Scalev)
+
+**Context:** CRM receives order data from Scalev. There are THREE different systems that count "paid/closing", and they disagree:
+
+| System | Basis hitung | Juli 2026 |
+|--|--|--|
+| **NocoBase manager (lama)** | Rekap manager sendiri | 1.074 paid |
+| **Scalev `orders.paid_time`** ← **SOURCE OF TRUTH** | Order dibayar per `paid_time` | **863 paid** |
+| **CRM leads (`last_update_at`)** | Lead status paid di-CRM | 811 / 790 (varian) |
+
+**Keputusan:** `orders.paid_time` (Scalev) adalah sumber kebenaran untuk metrik **paid / revenue per CS**. Lead tetap lapisan CRM (follow-up, status), tapi closing & revenue diambil dari tabel `orders`.
+
+### Aturan hitung yang WAJIB diikuti (jangan sampai salah lagi)
+
+1. **Jangan filter `payment_status = 'paid'` untuk metrik closing.** Order yang pernah dibayar lalu statusnya di-revert (unpaid) TETAP dihitung di bulan `paid_time`-nya. Dengan filter itu Juli jadi 764 (salah); tanpa filter = 863 (benar, cocok rekap Python/NocoBase).
+2. Basis query: `Order::whereBetween('paid_time', [$start, endOfDay])`.
+3. Revenue = `SUM(gross_revenue)` pada baris yang sama (Juli = **Rp 480.475.000**).
+4. Per-CS: group by `orders.handler_id`. Order dengan `handler_id NULL` → baris "Tanpa CS (unassigned)".
+5. **Offline store (Maya) diabaikan** — CS misterius Babe/Ardha/Hafiz/Yusril dari rekap NocoBase itu = offline store, bukan CS online. Fokus CS online.
+6. Ringkasan bulanan by `paid_time`: Feb **282**, Mar **424**, Apr **568**, Mei **502**, Jun **515**, Jul **863**, Agu **24**.
+
+### Implementasi
+- Tabel `orders` + `order_items` = sumber kebenaran order (68.635 order historis dari `Webhook_Logs.csv`).
+- Backfill: `php artisan scalev:import --path=<csv>` (idempotent, bisa di-ulang).
+- Live sync: `POST /api/webhook/scalev` → `ScalevOrderSync::processEvent()` + sync lead. Auth: header `X-Scalev-Secret` (env `SCALEV_WEBHOOK_SECRET`).
+- Dashboard (`DashboardController` + `LeadService::getHandlerStats`) memakai `orders.paid_time` untuk `closing`/`total_revenue`, sementara `total`/`followed_up` tetap dari `leads` (intake CRM).
+
+
 ## Local Development
 
 ### Database (SQLite)
