@@ -148,7 +148,8 @@ Organik 6.480 (40,0%) | Direct 4.994 (30,8%) | Ads 4.736 (29,2%)
 
 ## 7. Pitfalls yang Sudah Diketahui
 
-1. **`tanggal_payment` jam selalu 00:00:00** — cuma tanggal yang akurat, jam default. Untuk laporan bulanan tanggal cukup.
+7. **`tanggal_payment` jam selalu 00:00:00** — cuma tanggal yang akurat, jam default. Untuk laporan bulanan tanggal cukup.
+8. **Order `createdById=null` = lead LAMA (Januari–Mei) yang baru closing di bulan tsb** — bukan error, bukan order_id null (id_order tetap normal). Order dibuat era lama/import tanpa tracking pembuat, lalu di-sweep jadi success+paid oleh FAJAR (user id 41, admin/backend, bukan CS utama). Pola ini bukti "lag behaviour" customer Utapes (bisa 1-6 bulan nunggu bayar) → closing bulan X selalu mengandung order dari bulan² sebelumnya. Konsekuensi: konversi (closing/lead) sedikit bias, tapi basis tanggal_payment tetap benar utk revenue real.
 2. **`Total Value` di CSV AppScript 97% kosong** — JANGAN pakai untuk revenue. Revenue selalu dari NocoBase.
 3. **NocoBase `checkout` field**: online_organik, online_direct, online_ads, offline_store, "0" (numeric), null. Exclude offline_store untuk lead/closing. "0" = legacy.
 4. **Funnel Warm konversi (2,3%) lebih rendah dari Cold (4,4%)** — anomali yang perlu diwaspadai, jangan kaget.
