@@ -60,11 +60,23 @@ Contoh Juli: NocoBase 1.150 vs AppScript 809 → selisih 341 = transaksi di luar
 
 ## 4. Join Key (SOLUSI UTAMA)
 
-**Order ID di AppScript = `id_order` di NocoBase (100% match, sudah diverifikasi).**
+**Order ID di AppScript = `id_order` di NocoBase untuk order yang berasal dari Scalev (sudah diverifikasi 5/5 sample match).**
 
 Contoh: `260701MEIWJKJ` ada di kedua sistem.
 
-Artinya: NocoBase dan AppScript bisa **di-join jadi satu tabel per order**:
+**⚠️ TAPI tidak semua order match — dan itu NORMAL:**
+
+| Kategori | Di AppScript? | Di NocoBase? | Join match? |
+|----------|---------------|--------------|-------------|
+| Order dari Scalev (LP Meta Ads) | ✅ | ✅ (id sama) | ✅ MATCH |
+| Order dibuat MANUAL oleh CS (chat masuk tapi gak ada lead di DB → CS create order di NocoBase pakai format ID NocoBase) | ❌ | ✅ | ❌ NO MATCH |
+| Offline store | ❌ | ✅ | ❌ (sudah di-exclude) |
+
+**Use case manual CS (klarifikasi 2026-08-03):** chat masuk ke CS tapi lead-nya gak ada di database Scalev → CS membuat order manual di NocoBase. Order ini TIDAK akan ketemu di AppScript → join NO MATCH. **Ini bukan error, ini informasi**: selisih join = transaksi di luar Scalev (manual CS / direct WA / offline).
+
+**Join result = cara otomatis deteksi order manual:** NocoBase ada + AppScript tidak ada = kemungkinan besar order manual CS (perlu divalidasi manager).
+
+Artinya: NocoBase dan AppScript bisa **di-join jadi satu tabel per order** untuk order yang dari Scalev:
 
 ```
 Order ID (join key)
