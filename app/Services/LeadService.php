@@ -16,6 +16,7 @@ class LeadService
     public function __construct(
         protected UtmParserService $utmParser,
         protected LoyaltyService $loyaltyService,
+        protected LeadAssignmentService $leadAssignment,
     ) {}
 
     /**
@@ -39,43 +40,49 @@ class LeadService
             'timestamp' => 'nullable|date',
         ])->validate();
 
-        return DB::transaction(function () use ($validated) {
-            // Find or create customer
-            $customer = $this->loyaltyService->findOrCreate(
-                $validated['phone'],
-                $validated['customer_name'],
-                $validated['total_value'] ?? 0
-            );
+        $create = function () use ($validated) {
+            return DB::transaction(function () use ($validated) {
+                // Find or create customer
+                $customer = $this->loyaltyService->findOrCreate(
+                    $validated['phone'],
+                    $validated['customer_name'],
+                    $validated['total_value'] ?? 0
+                );
 
-            // Parse traffic type from UTM
-            $trafficType = $this->utmParser->classify(
-                $validated['utm_source'] ?? null,
-                $validated['utm_medium'] ?? null
-            );
+                // Parse traffic type from UTM
+                $trafficType = $this->utmParser->classify(
+                    $validated['utm_source'] ?? null,
+                    $validated['utm_medium'] ?? null
+                );
 
-            // Create lead
-            $lead = Lead::create([
-                'order_id' => $validated['order_id'],
-                'customer_id' => $customer->id,
-                'handler_id' => $validated['handler_id'] ?? null,
-                'financial_status' => $validated['financial_status'] ?? 'unpaid',
-                'total_value' => $validated['total_value'] ?? 0,
-                'funnel_stage' => 'cold',
-                'status_fu' => 'new',
-                'notes' => $validated['notes'] ?? null,
-                'size' => $validated['size'] ?? null,
-                'utm_source' => $validated['utm_source'] ?? null,
-                'utm_medium' => $validated['utm_medium'] ?? null,
-                'utm_campaign' => $validated['utm_campaign'] ?? null,
-                'utm_content' => $validated['utm_content'] ?? null,
-                'traffic_type' => $trafficType,
-                'lead_type' => $customer->total_orders > 1 ? 'repeat' : 'new',
-                'timestamp' => $validated['timestamp'] ?? now(),
-                'last_update_at' => $validated['timestamp'] ?? now(),
-            ]);
+                // Create lead
+                $lead = Lead::create([
+                    'order_id' => $validated['order_id'],
+                    'customer_id' => $customer->id,
+                    'handler_id' => $this->leadAssignment->assignWithoutLock($validated['handler_id'] ?? null),
+                    'financial_status' => $validated['financial_status'] ?? 'unpaid',
+                    'total_value' => $validated['total_value'] ?? 0,
+                    'funnel_stage' => 'cold',
+                    'status_fu' => 'new',
+                    'notes' => $validated['notes'] ?? null,
+                    'size' => $validated['size'] ?? null,
+                    'utm_source' => $validated['utm_source'] ?? null,
+                    'utm_medium' => $validated['utm_medium'] ?? null,
+                    'utm_campaign' => $validated['utm_campaign'] ?? null,
+                    'utm_content' => $validated['utm_content'] ?? null,
+                    'traffic_type' => $trafficType,
+                    'lead_type' => $customer->total_orders > 1 ? 'repeat' : 'new',
+                    'timestamp' => $validated['timestamp'] ?? now(),
+                    'last_update_at' => $validated['timestamp'] ?? now(),
+                ]);
 
-            return $lead;
-        });
+                return $lead;
+            });
+        };
+
+        return array_key_exists('handler_id', $validated) && $validated['handler_id'] !== null
+            ? $create()
+            : $this->leadAssignment->withAssignmentLock($create);
     }
 
     /**

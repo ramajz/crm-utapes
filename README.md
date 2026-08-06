@@ -7,6 +7,34 @@
 <a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
 </p>
 
+## CRM-Utapes
+
+CRM lead management untuk Utapes berbasis Laravel, Livewire, Alpine.js, dan Tailwind CSS.
+
+### Current Features
+
+- Lead and customer management with follow-up status, funnel stage, notes, and audit history.
+- Scalev webhook sync for orders, payments, customers, and leads.
+- Automatic lead assignment to active CS handlers.
+- Assignment strategies: `least_loaded` (default) and `round_robin`.
+- Local development with SQLite; production uses PostgreSQL.
+
+### Lead Assignment
+
+Configure optional assignment behavior in `.env`:
+
+```env
+LEAD_AUTO_ASSIGN=true
+LEAD_ASSIGN_STRATEGY=least_loaded
+```
+
+To preview or assign existing leads without a handler:
+
+```bash
+php artisan leads:assign-unassigned --dry-run
+php artisan leads:assign-unassigned
+```
+
 ## About Laravel
 
 Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:

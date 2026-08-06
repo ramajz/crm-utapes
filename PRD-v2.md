@@ -154,8 +154,8 @@ Lana=Hafiz, Rafli Bahar=Rafli, ikiobeng=Oben, febrifjr=Babe, erpann=Erpan, Ikbal
 - [ ] Tabel orders + leads + kolom source + dedup
 
 ### Fase 2 — Follow-up CS
-- [ ] Form follow-up CS (funnel, notes, status) di Livewire
-- [ ] Auto-assign lead
+- [x] Form follow-up CS (funnel, notes, status) di Livewire
+- [x] Auto-assign lead (strategi `least_loaded`/`round_robin`, config `leadassignment.php`, backfill `leads:assign-unassigned`)
 - [ ] CS pindah dari AppScript → CRM (AppScript dimatikan)
 
 ### Fase 3 — Validasi & Chatbot
