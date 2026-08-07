@@ -49,7 +49,19 @@ Import lead (Looker_Master) + customer (Customer_Master) dari export Google Shee
 - Update status lead + history (`LeadHistory`), toast + auto-reload
 - `last_update_at` di leads (tracking follow-up terakhir)
 
-### 5. Services
+### 5. Flow Follow-up Wajib via WhatsApp (WA Callback)
+Alur yang dirancang supaya CS **wajib follow-up lewat WhatsApp dulu** sebelum isi notes:
+
+1. Di halaman detail lead → klik **Chat WhatsApp** (`wa.me/<no_customer>`) — tab WA terbuka
+2. Balik ke CRM → modal **"Kembali dari WhatsApp!"** muncul otomatis (`showWaNotesModal` event)
+3. Form notes **baru aktif setelah WA diklik** (sebelumnya disabled dengan placeholder *"Klik Chat WhatsApp terlebih dahulu"*)
+4. CS isi hasil follow-up: **Status FU** (New/Chatted/Replied/Interested/Closing/Rejected/Nunggu Gajian/Promise Transfer), **Notes**, **Ukuran (size)**
+5. Simpan → status + notes tercatat di `lead_histories`
+
+> Ini pengganti form follow-up AppScript (PRD v2 M3). AppScript akan dimatikan setelah CS pindah penuh ke CRM.
+> Komponen: `app/Livewire/UpdateLeadStatus.php` + `resources/views/livewire/update-lead-status.blade.php`. Event: `openUpdateModal`, `showWaNotesModal`.
+
+### 6. Services
 | Service | Fungsi |
 |---------|--------|
 | `ScalevOrderSync` | Upsert order/items/customer/handler dari webhook |
@@ -57,7 +69,7 @@ Import lead (Looker_Master) + customer (Customer_Master) dari export Google Shee
 | `LoyaltyService` | Deteksi customer **new/repeat** by phone + `findOrCreate` (lock anti race condition, increment total_orders/total_spend) |
 | `LeadService` | Statistik handler (closing/revenue/lead) untuk dashboard |
 
-### 6. Laporan Bulanan (tools)
+### 7. Laporan Bulanan (tools)
 ```bash
 python3 scripts/join_laporan.py --bulan 2026-07 --csv "Leads_Jul_2026.csv"
 ```
