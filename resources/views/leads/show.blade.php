@@ -271,7 +271,7 @@
                             <h3 class="font-semibold text-slate-900">Aksi Cepat</h3>
                         </div>
                         <div class="p-5">
-                            <a href="https://wa.me/{{ $lead->customer?->wa_number }}" target="_blank"
+                            <a href="https://wa.me/{{ $lead->customer?->wa_number }}?text={{ urlencode($lead->customer?->name ? 'Halo '.$lead->customer->name.', terima kasih sudah menghubungi Utapes! Ada yang bisa kami bantu terkait pesanan Anda?' : 'Halo, terima kasih sudah menghubungi Utapes! Ada yang bisa kami bantu terkait pesanan Anda?') }}" target="_blank"
                                 id="wa-button-{{ $lead->id }}"
                                 data-wa-lead-id="{{ $lead->id }}"
                                 class="wa-chat-button w-full inline-flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 border border-transparent rounded-xl text-sm font-semibold text-white hover:from-emerald-600 hover:to-emerald-700 transition-all duration-200 shadow-sm shadow-emerald-200 active:scale-[0.98]">
