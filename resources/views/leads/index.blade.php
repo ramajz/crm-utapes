@@ -182,12 +182,37 @@
                                 </td>
                                 <td class="px-5 py-4 text-right font-mono text-sm font-medium text-slate-900">Rp {{ number_format($lead->total_value, 0, ',', '.') }}</td>
                                 <td class="px-5 py-4 text-right whitespace-nowrap">
-                                    <a href="{{ route('leads.show', $lead) }}" class="inline-flex items-center gap-1 text-sm font-medium text-indigo-600 hover:text-indigo-800 transition-colors">
-                                        Detail
-                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                                        </svg>
-                                    </a>
+                                    <div class="flex items-center justify-end gap-2">
+                                        @if(!auth()->user()->isCs())
+                                        <form method="POST" action="{{ route('leads.toggle-follow-up', $lead) }}" class="inline-flex">
+                                            @csrf
+                                            <input type="hidden" name="follow_up_required" value="{{ $lead->follow_up_required ? 0 : 1 }}">
+                                            @if($lead->follow_up_required)
+                                            <button type="submit" title="Hapus dari wajib follow-up"
+                                                class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors">
+                                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                                                </svg>
+                                                Wajib FU
+                                            </button>
+                                            @else
+                                            <button type="submit" title="Tandai wajib follow-up"
+                                                class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-600 hover:bg-amber-50 hover:text-amber-700 transition-colors">
+                                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                                                </svg>
+                                                Wajib FU
+                                            </button>
+                                            @endif
+                                        </form>
+                                        @endif
+                                        <a href="{{ route('leads.show', $lead) }}" class="inline-flex items-center gap-1 text-sm font-medium text-indigo-600 hover:text-indigo-800 transition-colors">
+                                            Detail
+                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                            </svg>
+                                        </a>
+                                    </div>
                                 </td>
                             </tr>
                             @empty
@@ -270,6 +295,29 @@
                         </div>
                         <div class="text-sm font-bold text-slate-900">Rp {{ number_format($lead->total_value, 0, ',', '.') }}</div>
                     </div>
+                    @if(!auth()->user()->isCs())
+                    <div class="mt-3 pt-3 border-t border-slate-100">
+                        <form method="POST" action="{{ route('leads.toggle-follow-up', $lead) }}" onclick="event.stopPropagation()">
+                            @csrf
+                            <input type="hidden" name="follow_up_required" value="{{ $lead->follow_up_required ? 0 : 1 }}">
+                            @if($lead->follow_up_required)
+                            <button type="submit" class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors">
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                                </svg>
+                                Hapus Wajib FU
+                            </button>
+                            @else
+                            <button type="submit" class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-600 hover:bg-amber-50 hover:text-amber-700 transition-colors">
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                                </svg>
+                                Tandai Wajib FU
+                            </button>
+                            @endif
+                        </form>
+                    </div>
+                    @endif
                 </div>
                 @empty
                 <div class="bg-white rounded-xl shadow-sm border border-slate-200/60 p-12 text-center">

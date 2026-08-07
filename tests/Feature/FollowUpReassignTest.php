@@ -209,4 +209,30 @@ class FollowUpReassignTest extends TestCase
         $response->assertSee($leadA->order_id);
         $response->assertDontSee($leadB->order_id);
     }
+
+    public function test_manager_sees_wajib_fu_button_on_leads_index(): void
+    {
+        $manager = User::factory()->manager()->create();
+        $handler = $this->createHandler('Siti');
+        $lead = $this->createLead($handler);
+
+        $response = $this->actingAs($manager)->get(route('leads.index'));
+
+        $response->assertOk();
+        $response->assertSee('Wajib FU');
+        $response->assertSee(route('leads.toggle-follow-up', $lead), false);
+    }
+
+    public function test_cs_does_not_see_wajib_fu_button_on_leads_index(): void
+    {
+        $handler = $this->createHandler('Siti');
+        $lead = $this->createLead($handler);
+        $cs = User::factory()->create(['role' => 'cs']);
+        $handler->update(['user_id' => $cs->id]);
+
+        $response = $this->actingAs($cs)->get(route('leads.index'));
+
+        $response->assertOk();
+        $response->assertDontSee(route('leads.toggle-follow-up', $lead), false);
+    }
 }
