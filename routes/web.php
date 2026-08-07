@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\LeadController;
+use App\Http\Controllers\WhatsAppTemplateController;
 use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'welcome');
@@ -21,6 +22,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Profile (Breeze)
     Route::view('profile', 'profile')->name('profile');
+
+    // WhatsApp Templates (manager/admin only — di cek di controller)
+    Route::resource('templates', WhatsAppTemplateController::class);
 });
 
 require __DIR__.'/auth.php';

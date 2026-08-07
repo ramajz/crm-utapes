@@ -6,6 +6,7 @@ use App\Models\Customer;
 use App\Models\Handler;
 use App\Models\Lead;
 use App\Models\User;
+use App\Models\WhatsAppTemplate;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -70,6 +71,13 @@ class TemplateWaTest extends TestCase
 
     public function test_detail_page_shows_template_panel(): void
     {
+        WhatsAppTemplate::create([
+            'name' => 'Sapaan Awal',
+            'category' => 'cold',
+            'message' => 'Halo {nama}, terima kasih sudah order di Utapes!',
+            'is_active' => true,
+        ]);
+
         $lead = $this->createLead();
         $cs = User::factory()->create(['role' => 'cs']);
         $lead->handler->update(['user_id' => $cs->id]);
@@ -84,6 +92,13 @@ class TemplateWaTest extends TestCase
 
     public function test_wa_link_contains_rendered_message(): void
     {
+        WhatsAppTemplate::create([
+            'name' => 'Sapaan Awal',
+            'category' => 'cold',
+            'message' => 'Halo {nama}, terima kasih sudah order di Utapes!',
+            'is_active' => true,
+        ]);
+
         $lead = $this->createLead();
         $cs = User::factory()->create(['role' => 'cs']);
         $lead->handler->update(['user_id' => $cs->id]);
@@ -91,8 +106,97 @@ class TemplateWaTest extends TestCase
         $response = $this->actingAs($cs)->get(route('leads.show', $lead));
 
         $response->assertOk();
+        // Link wa.me dinamis via Alpine (:href) — base URL tetap terlihat
         $response->assertSee('https://wa.me/6281234567890?text=', false);
-        // Pesan template 'Sapaan Awal' ter-render dengan nama customer
-        $response->assertSee(rawurlencode('Budi Santoso'), false);
+        // Pesan template ter-render dengan nama customer ada di textarea (Alpine state)
+        $response->assertSee("Halo Budi Santoso, terima kasih sudah order di Utapes!", false);
+    }
+
+    public function test_inactive_template_not_shown_on_detail_page(): void
+    {
+        WhatsAppTemplate::create([
+            'name' => 'Template Rahasia',
+            'category' => 'cold',
+            'message' => 'Halo {nama}',
+            'is_active' => false,
+        ]);
+
+        $lead = $this->createLead();
+        $cs = User::factory()->create(['role' => 'cs']);
+        $lead->handler->update(['user_id' => $cs->id]);
+
+        $response = $this->actingAs($cs)->get(route('leads.show', $lead));
+
+        $response->assertOk();
+        $response->assertDontSee('Template Rahasia');
+    }
+
+    public function test_manager_can_create_template(): void
+    {
+        $manager = User::factory()->manager()->create();
+
+        $response = $this->actingAs($manager)->post(route('templates.store'), [
+            'name' => 'Template Baru',
+            'category' => 'warm',
+            'message' => 'Halo {nama}, gimana kabarnya?',
+        ]);
+
+        $response->assertRedirect(route('templates.index'));
+        $this->assertDatabaseHas('whatsapp_templates', [
+            'name' => 'Template Baru',
+            'category' => 'warm',
+            'is_active' => true,
+        ]);
+    }
+
+    public function test_manager_can_update_template(): void
+    {
+        $manager = User::factory()->manager()->create();
+        $template = WhatsAppTemplate::create([
+            'name' => 'Lama',
+            'category' => 'cold',
+            'message' => 'Pesan lama',
+            'is_active' => true,
+        ]);
+
+        $response = $this->actingAs($manager)->put(route('templates.update', $template), [
+            'name' => 'Baru',
+            'category' => 'hot',
+            'message' => 'Pesan baru {nama}',
+            'is_active' => 1,
+        ]);
+
+        $response->assertRedirect(route('templates.index'));
+        $this->assertDatabaseHas('whatsapp_templates', [
+            'id' => $template->id,
+            'name' => 'Baru',
+            'category' => 'hot',
+            'message' => 'Pesan baru {nama}',
+        ]);
+    }
+
+    public function test_manager_can_delete_template(): void
+    {
+        $manager = User::factory()->manager()->create();
+        $template = WhatsAppTemplate::create([
+            'name' => 'Hapus Saya',
+            'category' => 'cold',
+            'message' => 'Pesan',
+            'is_active' => true,
+        ]);
+
+        $response = $this->actingAs($manager)->delete(route('templates.destroy', $template));
+
+        $response->assertRedirect(route('templates.index'));
+        $this->assertDatabaseMissing('whatsapp_templates', ['id' => $template->id]);
+    }
+
+    public function test_cs_cannot_manage_templates(): void
+    {
+        $cs = User::factory()->create(['role' => 'cs']);
+
+        $response = $this->actingAs($cs)->get(route('templates.index'));
+
+        $response->assertForbidden();
     }
 }

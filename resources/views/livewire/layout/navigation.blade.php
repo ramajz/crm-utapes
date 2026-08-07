@@ -57,6 +57,18 @@ new class extends Component
                             </svg>
                             Wajib FU
                         </x-nav-link>
+                        @if(auth()->user()->isManager() || auth()->user()->isAdmin())
+                        <x-nav-link :href="route('templates.index')" :active="request()->routeIs('templates.*')" wire:navigate
+                            class="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200
+                            {{ request()->routeIs('templates.*')
+                                ? 'bg-white/15 text-white shadow-sm'
+                                : 'text-indigo-200 hover:text-white hover:bg-white/10' }}">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                            </svg>
+                            Template WA
+                        </x-nav-link>
+                        @endif
                     </div>
                 </div>
                 <div class="hidden sm:flex sm:items-center sm:ms-6">
@@ -140,6 +152,21 @@ new class extends Component
                 </svg>
                 <span class="font-medium {{ request()->routeIs('leads.follow-up') ? 'text-indigo-600' : '' }}">Wajib FU</span>
             </a>
+
+            @if(auth()->user()->isManager() || auth()->user()->isAdmin())
+            {{-- Template WA --}}
+            <a href="{{ route('templates.index') }}" wire:navigate
+                class="flex flex-col items-center justify-center px-3 py-1.5 rounded-xl text-xs transition-all duration-200 relative
+                {{ request()->routeIs('templates.*') ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600' }}">
+                @if(request()->routeIs('templates.*'))
+                <span class="absolute -top-0.5 w-6 h-1 rounded-full bg-indigo-600"></span>
+                @endif
+                <svg class="w-6 h-6 mb-0.5" fill="{{ request()->routeIs('templates.*') ? 'currentColor' : 'none' }}" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                </svg>
+                <span class="font-medium {{ request()->routeIs('templates.*') ? 'text-indigo-600' : '' }}">Template</span>
+            </a>
+            @endif
 
             {{-- Profile --}}
             <a href="{{ route('profile') }}" wire:navigate
