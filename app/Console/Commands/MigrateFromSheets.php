@@ -15,6 +15,7 @@ class MigrateFromSheets extends Command
         {--path=database/imports : Direktori tempat file CSV}
         {--looker=Looker_Master.csv : Nama file CSV gabungan leads}
         {--customers=Customer_Master.csv : Nama file CSV customer}
+        {--flush : Hapus semua lead, customer, dan handler yang ada sebelum import}
         {--dry-run : Preview tanpa menyimpan ke DB}';
 
     protected $description = 'Migrasi data dari Google Sheets (Looker_Master & Customer_Master) ke database';
@@ -45,6 +46,14 @@ class MigrateFromSheets extends Command
         $this->dryRun = (bool) $this->option('dry-run');
         if ($this->dryRun) {
             $this->warn('=== DRY-RUN: tidak ada data yang ditulis ke database ===');
+        }
+
+        if (!$this->dryRun && $this->option('flush')) {
+            $this->warn('=== FLUSH: menghapus data lama (leads, customers, handlers) ===');
+            Lead::query()->forceDelete();
+            Customer::query()->delete();
+            Handler::query()->delete();
+            $this->info('Data lama dihapus. Mulai import data baru...');
         }
 
         DB::transaction(function () use ($lookerPath, $customersPath) {
@@ -201,16 +210,39 @@ class MigrateFromSheets extends Command
             ->all();
     }
 
+    /**
+     * Alias nama CS dari AppScript ke nama resmi (sesuai PRD-v2).
+     */
+    private function resolveHandlerName(string $name): string
+    {
+        $aliases = [
+            'lana' => 'Hafiz',
+            'rafli bahar' => 'Rafli',
+            'ikiobeng' => 'Oben',
+            'febrifjr' => 'Babe',
+            'erpann' => 'Erpan',
+            'ikbal cjr' => 'Iqbal',
+            'kiki ternyata' => 'Kiki',
+            'andhi yanuar' => 'Andhi',
+        ];
+
+        $key = strtolower(trim($name));
+
+        return $aliases[$key] ?? $name;
+    }
+
     private function resolveHandler(string $name): ?int
     {
-        if (isset($this->handlerMap[$name])) {
-            return $this->handlerMap[$name];
+        $canonical = $this->resolveHandlerName($name);
+
+        if (isset($this->handlerMap[$canonical])) {
+            return $this->handlerMap[$canonical];
         }
         if ($this->dryRun) {
             return null;
         }
-        $handler = Handler::create(['name' => $name, 'is_active' => true]);
-        $this->handlerMap[$name] = $handler->id;
+        $handler = Handler::create(['name' => $canonical, 'is_active' => true]);
+        $this->handlerMap[$canonical] = $handler->id;
         $this->handlersCreated++;
         return $handler->id;
     }
@@ -301,6 +333,13 @@ class MigrateFromSheets extends Command
             'customer_name', 'nama' => 'customer_name',
             'status_fu', 'status' => 'status_fu',
             'total_value', 'nominal', 'amount' => 'total_value',
+            'financial_status', 'payment_status' => 'financial_status',
+            'timestamp', 'tanggal_masuk', 'tanggal_transaksi_masuk', 'order_date' => 'timestamp',
+            'last_update', 'last_update_at' => 'last_update',
+            'funnel_stage', 'funnel' => 'funnel_stage',
+            'traffic_type', 'traffic' => 'traffic_type',
+            'size', 'ukuran' => 'size',
+            'utm_source', 'utm_medium', 'utm_campaign', 'utm_content' => $key,
             default => $key,
         };
     }
