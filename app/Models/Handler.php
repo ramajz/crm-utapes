@@ -8,6 +8,7 @@ class Handler extends Model
 {
     protected $fillable = [
         'user_id',
+        'branch_id',
         'name',
         'phone',
         'is_active',
@@ -23,6 +24,11 @@ class Handler extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class);
     }
 
     public function leads()

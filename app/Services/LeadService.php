@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Lead;
 use App\Models\LeadHistory;
+use App\Models\Handler;
 use App\Models\Order;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -174,6 +175,115 @@ class LeadService
             ]);
 
             return $lead->fresh();
+        });
+    }
+
+    /**
+     * Tandai / hapus penanda lead wajib follow-up oleh manager/admin.
+     * Saat ditandai → follow_up_status = pending; saat dihapus → status & completed direset.
+     */
+    public function markFollowUp(Lead $lead, bool $required, int $userId): Lead
+    {
+        return DB::transaction(function () use ($lead, $required, $userId) {
+            $oldValue = $lead->follow_up_required ? '1' : '0';
+            $newValue = $required ? '1' : '0';
+
+            $lead->update([
+                'follow_up_required' => $required,
+                'follow_up_status' => $required ? 'pending' : null,
+                'follow_up_completed_at' => $required ? $lead->follow_up_completed_at : null,
+            ]);
+
+            if ($oldValue !== $newValue) {
+                LeadHistory::create([
+                    'lead_id' => $lead->id,
+                    'user_id' => $userId,
+                    'field_changed' => 'follow_up_required',
+                    'old_value' => $oldValue,
+                    'new_value' => $newValue,
+                ]);
+            }
+
+            return $lead->fresh();
+        });
+    }
+
+    /**
+     * CS menandai lead wajib follow-up selesai dikerjakan.
+     */
+    public function completeFollowUp(Lead $lead, int $userId): Lead
+    {
+        if (!$lead->follow_up_required || $lead->follow_up_status === 'done') {
+            return $lead;
+        }
+
+        return DB::transaction(function () use ($lead, $userId) {
+            LeadHistory::create([
+                'lead_id' => $lead->id,
+                'user_id' => $userId,
+                'field_changed' => 'follow_up_status',
+                'old_value' => $lead->follow_up_status,
+                'new_value' => 'done',
+            ]);
+
+            $lead->update([
+                'follow_up_status' => 'done',
+                'follow_up_completed_at' => now(),
+                'last_update_at' => now(),
+            ]);
+
+            return $lead->fresh();
+        });
+    }
+
+    /**
+     * Pindahkan lead ke handler/CS lain. Status wajib follow-up ikut terbawa.
+     */
+    public function reassignHandler(Lead $lead, int $handlerId, int $userId): Lead
+    {
+        return DB::transaction(function () use ($lead, $handlerId, $userId) {
+            $handler = Handler::findOrFail($handlerId);
+            $oldHandler = $lead->handler;
+
+            if ($lead->handler_id === $handlerId) {
+                return $lead;
+            }
+
+            LeadHistory::create([
+                'lead_id' => $lead->id,
+                'user_id' => $userId,
+                'field_changed' => 'handler_id',
+                'old_value' => $oldHandler?->name,
+                'new_value' => $handler->name,
+            ]);
+
+            $lead->update([
+                'handler_id' => $handlerId,
+                'last_update_at' => now(),
+            ]);
+
+            return $lead->fresh();
+        });
+    }
+
+    /**
+     * Pindahkan banyak lead ke satu handler sekaligus. Return jumlah yang dipindah.
+     */
+    public function bulkReassign(array $leadIds, int $handlerId, int $userId): int
+    {
+        $leadIds = array_map('intval', $leadIds);
+
+        return DB::transaction(function () use ($leadIds, $handlerId, $userId) {
+            $count = 0;
+            foreach ($leadIds as $leadId) {
+                $lead = Lead::find($leadId);
+                if (!$lead || $lead->handler_id === $handlerId) {
+                    continue;
+                }
+                $this->reassignHandler($lead, $handlerId, $userId);
+                $count++;
+            }
+            return $count;
         });
     }
 

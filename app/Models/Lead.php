@@ -29,6 +29,7 @@ class Lead extends Model
         'order_id',
         'customer_id',
         'handler_id',
+        'branch_id',
         'financial_status',
         'total_value',
         'funnel_stage',
@@ -43,6 +44,9 @@ class Lead extends Model
         'lead_type',
         'first_replied_at',
         'last_update_at',
+        'follow_up_required',
+        'follow_up_status',
+        'follow_up_completed_at',
         'timestamp',
     ];
 
@@ -53,6 +57,8 @@ class Lead extends Model
             'timestamp' => 'datetime',
             'first_replied_at' => 'datetime',
             'last_update_at' => 'datetime',
+            'follow_up_required' => 'boolean',
+            'follow_up_completed_at' => 'datetime',
         ];
     }
 
@@ -64,6 +70,11 @@ class Lead extends Model
     public function handler()
     {
         return $this->belongsTo(Handler::class);
+    }
+
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class);
     }
 
     public function histories()
@@ -85,6 +96,16 @@ class Lead extends Model
     public function scopeNotFollowedUp($query)
     {
         return $query->where('status_fu', 'new');
+    }
+
+    public function scopeFollowUpRequired($query)
+    {
+        return $query->where('follow_up_required', true);
+    }
+
+    public function scopeFollowUpPending($query)
+    {
+        return $query->where('follow_up_status', 'pending');
     }
 
     public function scopeFollowedUp($query)

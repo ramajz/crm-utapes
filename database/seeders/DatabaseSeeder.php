@@ -16,6 +16,7 @@ class DatabaseSeeder extends Seeder
 
     public function run(): void
     {
+        $this->call(BranchSeeder::class);
         $this->createUsers();
         $this->createHandlers();
         $this->createCustomers();

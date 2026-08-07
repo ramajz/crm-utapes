@@ -10,6 +10,7 @@ class Order extends Model
         'order_id',
         'customer_id',
         'handler_id',
+        'branch_id',
         'status',
         'payment_status',
         'is_probably_spam',
@@ -115,6 +116,11 @@ class Order extends Model
     public function handler()
     {
         return $this->belongsTo(Handler::class);
+    }
+
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class);
     }
 
     public function items()

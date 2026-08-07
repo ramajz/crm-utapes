@@ -47,6 +47,16 @@ new class extends Component
                             </svg>
                             Leads
                         </x-nav-link>
+                        <x-nav-link :href="route('leads.follow-up')" :active="request()->routeIs('leads.follow-up')" wire:navigate
+                            class="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200
+                            {{ request()->routeIs('leads.follow-up')
+                                ? 'bg-white/15 text-white shadow-sm'
+                                : 'text-indigo-200 hover:text-white hover:bg-white/10' }}">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                            </svg>
+                            Wajib FU
+                        </x-nav-link>
                     </div>
                 </div>
                 <div class="hidden sm:flex sm:items-center sm:ms-6">
@@ -92,7 +102,6 @@ new class extends Component
                 $isLeads = request()->routeIs('leads.*');
                 $isProfile = request()->routeIs('profile');
             @endphp
-
             {{-- Dashboard --}}
             <a href="{{ route('dashboard') }}" wire:navigate
                 class="flex flex-col items-center justify-center px-3 py-1.5 rounded-xl text-xs transition-all duration-200 relative
@@ -117,6 +126,19 @@ new class extends Component
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
                 </svg>
                 <span class="font-medium {{ $isLeads ? 'text-indigo-600' : '' }}">Leads</span>
+            </a>
+
+            {{-- Wajib Follow-Up --}}
+            <a href="{{ route('leads.follow-up') }}" wire:navigate
+                class="flex flex-col items-center justify-center px-3 py-1.5 rounded-xl text-xs transition-all duration-200 relative
+                {{ request()->routeIs('leads.follow-up') ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600' }}">
+                @if(request()->routeIs('leads.follow-up'))
+                <span class="absolute -top-0.5 w-6 h-1 rounded-full bg-indigo-600"></span>
+                @endif
+                <svg class="w-6 h-6 mb-0.5" fill="{{ request()->routeIs('leads.follow-up') ? 'currentColor' : 'none' }}" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                </svg>
+                <span class="font-medium {{ request()->routeIs('leads.follow-up') ? 'text-indigo-600' : '' }}">Wajib FU</span>
             </a>
 
             {{-- Profile --}}

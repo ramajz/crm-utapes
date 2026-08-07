@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Branch;
+use App\Models\Handler;
 use App\Models\Lead;
 use App\Services\LeadService;
 use Illuminate\Http\Request;
@@ -52,7 +54,9 @@ class LeadController extends Controller
 
         $leads = $query->orderBy('timestamp', 'desc')->paginate(50);
 
-        return view('leads.index', compact('leads'));
+        $handlers = Handler::where('is_active', true)->orderBy('name')->get();
+
+        return view('leads.index', compact('leads', 'handlers'));
     }
 
     public function show(Request $request, Lead $lead)
@@ -60,6 +64,91 @@ class LeadController extends Controller
         $this->authorizeLeadAccess($request->user(), $lead);
         $lead->load(['customer', 'handler', 'histories.user']);
         return view('leads.show', compact('lead'));
+    }
+
+    public function followUpIndex(Request $request)
+    {
+        $user = $request->user();
+
+        $query = Lead::with(['customer', 'handler', 'branch'])
+            ->followUpRequired();
+
+        // CS hanya lihat lead wajib follow-up miliknya
+        if ($user->isCs()) {
+            $handler = $user->handler;
+            if ($handler) {
+                $query->byHandler($handler->id);
+            }
+        } else {
+            if ($request->filled('handler_id')) {
+                $query->byHandler($request->handler_id);
+            }
+            if ($request->filled('branch_id')) {
+                $query->where('branch_id', $request->branch_id);
+            }
+            if ($request->filled('status_fu')) {
+                $query->where('status_fu', $request->status_fu);
+            }
+            if ($request->filled('start_date')) {
+                $query->byDateRange(
+                    $request->start_date,
+                    $request->end_date ?? now()->toDateString()
+                );
+            }
+        }
+
+        // Pending di atas, lalu terbaru
+        $query->orderByRaw('CASE WHEN follow_up_status = \'pending\' THEN 0 ELSE 1 END')
+            ->orderBy('timestamp', 'desc');
+
+        $leads = $query->paginate(50)->withQueryString();
+
+        $handlers = Handler::where('is_active', true)->orderBy('name')->get();
+        $branches = Branch::where('is_active', true)->orderBy('name')->get();
+
+        return view('leads.follow-up', compact('leads', 'handlers', 'branches'));
+    }
+
+    public function toggleFollowUp(Request $request, Lead $lead)
+    {
+        $user = $request->user();
+        abort_unless($user->isManager() || $user->isAdmin(), 403, 'Hanya manager/admin yang bisa menandai wajib follow-up.');
+
+        $validated = $request->validate([
+            'follow_up_required' => 'required|boolean',
+        ]);
+
+        $this->leadService->markFollowUp($lead, (bool) $validated['follow_up_required'], $user->id);
+
+        return redirect()->back()->with('success', $validated['follow_up_required']
+            ? 'Lead ditandai wajib follow-up.'
+            : 'Penanda wajib follow-up dihapus.');
+    }
+
+    public function completeFollowUp(Request $request, Lead $lead)
+    {
+        $this->authorizeLeadAccess($request->user(), $lead);
+
+        $this->leadService->completeFollowUp($lead, $request->user()->id);
+
+        return redirect()->back()->with('success', 'Follow-up ditandai selesai.');
+    }
+
+    public function bulkReassign(Request $request)
+    {
+        $user = $request->user();
+        abort_unless($user->isManager() || $user->isAdmin(), 403, 'Hanya manager/admin yang bisa memindahkan lead.');
+
+        $validated = $request->validate([
+            'lead_ids' => 'required|array|min:1',
+            'lead_ids.*' => 'integer',
+            'handler_id' => 'required|exists:handlers,id',
+        ]);
+
+        $handler = Handler::findOrFail($validated['handler_id']);
+        $count = $this->leadService->bulkReassign($validated['lead_ids'], $handler->id, $user->id);
+
+        return redirect()->back()->with('success', "{$count} lead dipindahkan ke {$handler->name}.");
     }
 
     public function updateStatus(Request $request, Lead $lead)

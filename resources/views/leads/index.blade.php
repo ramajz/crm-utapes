@@ -81,15 +81,53 @@
                 </div>
             </div>
 
+            {{-- Bulk Reassign Toolbar (manager/admin only) --}}
+            @if(!auth()->user()->isCs())
+            <form method="POST" action="{{ route('leads.bulk-reassign') }}" id="bulk-reassign-form"
+                class="bg-white rounded-xl shadow-sm border border-slate-200/60 mb-5 p-4 hidden">
+                @csrf
+                <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                    <div class="flex items-center gap-2 text-sm font-medium text-slate-700">
+                        <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                        <span><span id="bulk-selected-count">0</span> lead dipilih</span>
+                    </div>
+                    <div class="flex-1 flex flex-col sm:flex-row gap-3">
+                        <select name="handler_id" required
+                            class="block w-full sm:w-auto flex-1 rounded-lg border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500/20 text-sm">
+                            <option value="" selected disabled>Pilih CS tujuan...</option>
+                            @foreach($handlers ?? [] as $handler)
+                            <option value="{{ $handler->id }}">{{ $handler->name }}</option>
+                            @endforeach
+                        </select>
+                        <button type="submit"
+                            class="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-indigo-600 border border-transparent rounded-lg text-sm font-semibold text-white hover:bg-indigo-700 transition-all duration-200 shadow-sm shadow-indigo-200">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                            </svg>
+                            Pindahkan ke CS
+                        </button>
+                    </div>
+                </div>
+            </form>
+            @endif
+
             {{-- Desktop Table --}}
             <div class="bg-white rounded-xl shadow-sm border border-slate-200/60 hidden md:block overflow-hidden">
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-slate-100">
                         <thead>
                             <tr class="bg-slate-50/50">
+                                @if(!auth()->user()->isCs())
+                                <th class="px-4 py-3.5 w-10">
+                                    <input type="checkbox" id="bulk-select-all" class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500/20">
+                                </th>
+                                @endif
                                 <th class="px-5 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Order</th>
                                 <th class="px-5 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Customer</th>
                                 <th class="px-5 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Handler</th>
+                                <th class="px-5 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Cabang</th>
                                 <th class="px-5 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
                                 <th class="px-5 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Funnel</th>
                                 <th class="px-5 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Payment</th>
@@ -100,12 +138,18 @@
                         <tbody class="divide-y divide-slate-100">
                             @forelse($leads as $lead)
                             <tr class="hover:bg-slate-50/50 transition-colors">
+                                @if(!auth()->user()->isCs())
+                                <td class="px-4 py-4">
+                                    <input type="checkbox" name="lead_ids[]" value="{{ $lead->id }}" class="bulk-check rounded border-slate-300 text-indigo-600 focus:ring-indigo-500/20">
+                                </td>
+                                @endif
                                 <td class="px-5 py-4 font-mono text-xs text-slate-500">{{ $lead->order_id }}</td>
                                 <td class="px-5 py-4">
                                     <div class="font-medium text-slate-900 text-sm">{{ $lead->customer?->name ?? '-' }}</div>
                                     <div class="text-slate-400 text-xs mt-0.5">{{ $lead->customer?->phone ?? '-' }}</div>
                                 </td>
                                 <td class="px-5 py-4 text-sm text-slate-600">{{ $lead->handler?->name ?? '-' }}</td>
+                                <td class="px-5 py-4 text-sm text-slate-600">{{ $lead->branch?->name ?? '-' }}</td>
                                 <td class="px-5 py-4">
                                     <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium
                                         @switch($lead->status_fu) @case('new') bg-slate-100 text-slate-700 @case('chatted') bg-blue-50 text-blue-700 @case('replied') bg-indigo-50 text-indigo-700 @case('interested') bg-amber-50 text-amber-700 @case('closing') bg-emerald-50 text-emerald-700 @case('rejected') bg-rose-50 text-rose-700 @default bg-orange-50 text-orange-700 @endswitch
@@ -147,7 +191,7 @@
                                 </td>
                             </tr>
                             @empty
-                            <tr><td colspan="8" class="px-5 py-12 text-center text-slate-400">
+                            <tr><td colspan="{{ auth()->user()->isCs() ? 9 : 10 }}" class="px-5 py-12 text-center text-slate-400">
                                 <svg class="w-12 h-12 mx-auto mb-3 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
                                 </svg>
@@ -246,4 +290,46 @@
             </div>
         </div>
     </div>
+
+    @if(!auth()->user()->isCs())
+    @push('scripts')
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const selectAll = document.getElementById('bulk-select-all');
+            const checkboxes = document.querySelectorAll('.bulk-check');
+            const toolbar = document.getElementById('bulk-reassign-form');
+            const countLabel = document.getElementById('bulk-selected-count');
+            const form = document.getElementById('bulk-reassign-form');
+
+            function update() {
+                const checked = document.querySelectorAll('.bulk-check:checked');
+                countLabel.textContent = checked.length;
+                if (checked.length > 0) {
+                    toolbar.classList.remove('hidden');
+                } else {
+                    toolbar.classList.add('hidden');
+                }
+            }
+
+            if (selectAll) {
+                selectAll.addEventListener('change', function () {
+                    checkboxes.forEach(cb => cb.checked = selectAll.checked);
+                    update();
+                });
+            }
+            checkboxes.forEach(cb => cb.addEventListener('change', update));
+
+            if (form) {
+                form.addEventListener('submit', function (e) {
+                    const checked = document.querySelectorAll('.bulk-check:checked');
+                    if (checked.length === 0) {
+                        e.preventDefault();
+                        alert('Pilih minimal satu lead dulu.');
+                    }
+                });
+            }
+        });
+    </script>
+    @endpush
+    @endif
 </x-app-layout>

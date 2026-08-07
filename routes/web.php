@@ -12,8 +12,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Leads
     Route::get('/leads', [LeadController::class, 'index'])->name('leads.index');
+    Route::get('/leads/follow-up', [LeadController::class, 'followUpIndex'])->name('leads.follow-up');
     Route::get('/leads/{lead}', [LeadController::class, 'show'])->name('leads.show');
     Route::post('/leads/{lead}/update-status', [LeadController::class, 'updateStatus'])->name('leads.update-status');
+    Route::post('/leads/{lead}/follow-up', [LeadController::class, 'toggleFollowUp'])->name('leads.toggle-follow-up');
+    Route::post('/leads/{lead}/follow-up/complete', [LeadController::class, 'completeFollowUp'])->name('leads.complete-follow-up');
+    Route::post('/leads/bulk-reassign', [LeadController::class, 'bulkReassign'])->name('leads.bulk-reassign');
 
     // Profile (Breeze)
     Route::view('profile', 'profile')->name('profile');

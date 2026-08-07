@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Branch;
 use App\Models\Customer;
 use App\Models\Handler;
 use App\Models\Lead;
@@ -23,6 +24,7 @@ class MigrateFromSheets extends Command
     private array $headerMap = [];
     private bool $dryRun = false;
     private array $handlerMap = [];
+    private array $branchMap = [];
     private array $customerMap = [];
     private int $handlersCreated = 0;
     private int $customersCreated = 0;
@@ -179,6 +181,9 @@ class MigrateFromSheets extends Command
             $handlerId = $handlerName !== '' ? $this->resolveHandler($handlerName) : null;
             $data['handler_id'] = $handlerId;
 
+            $branchId = $this->resolveBranch($row['branch_id'] ?? null);
+            $data['branch_id'] = $branchId;
+
             $customer = $this->resolveCustomer($phone, $customerName, $data['timestamp']);
             $data['customer_id'] = $customer?->id;
 
@@ -203,6 +208,7 @@ class MigrateFromSheets extends Command
     private function loadMaps(): void
     {
         $this->handlerMap = Handler::all()->pluck('id', 'name')->all();
+        $this->branchMap = Branch::all()->pluck('id', 'nocobase_id')->all();
         $this->customerMap = Customer::query()
             ->whereNotNull('phone')
             ->get()
@@ -245,6 +251,24 @@ class MigrateFromSheets extends Command
         $this->handlerMap[$canonical] = $handler->id;
         $this->handlersCreated++;
         return $handler->id;
+    }
+
+    /**
+     * Petakan cabang_id (NocoBase) ke branch_id tabel branches.
+     */
+    private function resolveBranch(?string $branchId): ?int
+    {
+        $branchId = trim((string) $branchId);
+        if ($branchId === '') {
+            return null;
+        }
+
+        if (!isset($this->branchMap[$branchId])) {
+            $branch = Branch::where('nocobase_id', $branchId)->first();
+            $this->branchMap[$branchId] = $branch?->id;
+        }
+
+        return $this->branchMap[$branchId];
     }
 
     private function resolveCustomer(string $phone, string $name, $firstTimestamp): ?Customer
@@ -339,6 +363,7 @@ class MigrateFromSheets extends Command
             'funnel_stage', 'funnel' => 'funnel_stage',
             'traffic_type', 'traffic' => 'traffic_type',
             'size', 'ukuran' => 'size',
+            'cabang_id', 'branch_id', 'branch', 'cabang' => 'branch_id',
             'utm_source', 'utm_medium', 'utm_campaign', 'utm_content' => $key,
             default => $key,
         };
