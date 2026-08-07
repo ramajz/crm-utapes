@@ -49,17 +49,18 @@ Import lead (Looker_Master) + customer (Customer_Master) dari export Google Shee
 - Update status lead + history (`LeadHistory`), toast + auto-reload
 - `last_update_at` di leads (tracking follow-up terakhir)
 
-### 5. Flow Follow-up Wajib via WhatsApp (WA Callback)
-Alur yang dirancang supaya CS **wajib follow-up lewat WhatsApp dulu** sebelum isi notes:
+### 5. Follow-up CS via WhatsApp — Pesan Prefilled (bukan WABA)
+Fitur bantu CS follow-up: klik **Chat WhatsApp** → WA terbuka dengan **pesan follow-up sudah terisi otomatis** (biar CS gak ngetik dari nol). Ini murni fitur internal CRM, **tidak terkait chatbot WABA**.
 
-1. Di halaman detail lead → klik **Chat WhatsApp** (`wa.me/<no_customer>`) — tab WA terbuka
-2. Balik ke CRM → modal **"Kembali dari WhatsApp!"** muncul otomatis (`showWaNotesModal` event)
-3. Form notes **baru aktif setelah WA diklik** (sebelumnya disabled dengan placeholder *"Klik Chat WhatsApp terlebih dahulu"*)
-4. CS isi hasil follow-up: **Status FU** (New/Chatted/Replied/Interested/Closing/Rejected/Nunggu Gajian/Promise Transfer), **Notes**, **Ukuran (size)**
-5. Simpan → status + notes tercatat di `lead_histories`
+Alur:
+1. Halaman detail lead → klik **Chat WhatsApp** (`wa.me/<no_customer>?text=<template>`) — tab WA terbuka, pesan sudah terisi
+2. CS tinggal review/kirim, lalu balik ke CRM
+3. Modal **"Kembali dari WhatsApp!"** muncul otomatis (`showWaNotesModal` event)
+4. Form notes aktif — CS isi **Status FU**, **Notes**, **Ukuran (size)**
+5. Simpan → tercatat di `lead_histories`
 
-> Ini pengganti form follow-up AppScript (PRD v2 M3). AppScript akan dimatikan setelah CS pindah penuh ke CRM.
-> Komponen: `app/Livewire/UpdateLeadStatus.php` + `resources/views/livewire/update-lead-status.blade.php`. Event: `openUpdateModal`, `showWaNotesModal`.
+> Pengganti form follow-up AppScript (PRD v2 M3). Komponen: `app/Livewire/UpdateLeadStatus.php` + `resources/views/livewire/update-lead-status.blade.php`. Event: `openUpdateModal`, `showWaNotesModal`.
+> ⚠️ **Beda dengan WABA**: template WABA (9 template chatbot) itu project terpisah di `/home/rmjz/utapes-waba-templates.md` (masih draft) — jangan dicampur.
 
 ### 6. Services
 | Service | Fungsi |
