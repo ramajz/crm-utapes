@@ -137,6 +137,30 @@ class Lead extends Model
         return 'Rp ' . number_format($this->total_value, 0, ',', '.');
     }
 
+    /**
+     * Placeholder yang didukung template WhatsApp, diisi data lead.
+     */
+    public function getTemplatePlaceholders(): array
+    {
+        return [
+            '{nama}' => $this->customer?->name ?? 'Customer',
+            '{order_id}' => $this->order_id,
+            '{size}' => $this->size ?? '',
+            '{total}' => $this->formatted_total,
+            '{handler}' => $this->handler?->name ?? 'CS',
+        ];
+    }
+
+    /**
+     * Render template pesan dengan mengganti placeholder data lead.
+     */
+    public function renderTemplate(string $message): string
+    {
+        $placeholders = $this->getTemplatePlaceholders();
+
+        return str_replace(array_keys($placeholders), array_values($placeholders), $message);
+    }
+
     // Static Helpers
     public static function mapStatusToFunnel(string $statusFu): string
     {
