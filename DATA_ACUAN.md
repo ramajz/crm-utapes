@@ -4,6 +4,15 @@
 > Dokumen ini adalah kesepakatan data yang berlaku permanen (disepakati 2026-08-03).
 > Update hanya jika user secara eksplisit menyetujui perubahan.
 
+> ## ⚠️ UPDATE 2026-08-07 — Source of Truth Closing/Revenue PINDAH ke Scalev `orders`
+> **AGENTS.md sekarang lebih baru dari bagian 3 & 6 dokumen ini.** Untuk metrik **closing (paid) & revenue**, sumber kebenaran = tabel `orders` dari Scalev (basis `paid_time`), **BUKAN NocoBase lagi**:
+> - Closing Juli 2026 = **863** (bukan 1.150) — `Order::whereBetween('paid_time', ...)`, **jangan filter `payment_status='paid'`**
+> - Revenue Juli 2026 = **Rp 480.475.000** (bukan Rp 654,3 jt) — `SUM(gross_revenue)`
+> - Per-CS group by `orders.handler_id`, offline store diabaikan
+> - NocoBase tetap dipakai untuk **LEAD** (volume order masuk) & konteks transaksi
+> Aturan lengkap & angka referensi baru: **lihat AGENTS.md (bagian "Data Paid / Closing — Source of Truth")**.
+> Bagian 3 & 6 di bawah ini disimpan sebagai riwayat kesepakatan lama (NocoBase-based).
+
 ---
 
 ## 1. Konteks Bisnis
