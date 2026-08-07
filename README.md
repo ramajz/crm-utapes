@@ -17,7 +17,21 @@ CRM lead management untuk Utapes berbasis Laravel, Livewire, Alpine.js, dan Tail
 - Scalev webhook sync for orders, payments, customers, and leads.
 - Automatic lead assignment to active CS handlers.
 - Assignment strategies: `least_loaded` (default) and `round_robin`.
+- **Wajib Follow-Up**: Manager marks priority leads; CS sees them in a dedicated menu and marks them done.
+- **Bulk Reassign CS**: Manager moves multiple leads to another CS at once.
+- **Branches**: Lumajang & Kediri with NocoBase mapping (`branch_id` on leads, orders, handlers).
+- **WhatsApp Message Templates**: Predefined templates with dynamic variables (`{nama}`, `{order_id}`, `{size}`, `{total}`, `{handler}`) that open `wa.me` with a pre-filled message.
 - Local development with SQLite; production uses PostgreSQL.
+
+### Import Real Data (AppScript)
+
+```bash
+php artisan migrate:sheets --looker="App-Utapes - Leads_Jul_2026.csv" --flush
+```
+
+- Supports AppScript headers (`Phone (WA)`, `Handler (CS)`, `Financial Status`, etc.)
+- Maps CS aliases to canonical names (Lana → Hafiz, Kiki ternyata → Kiki, etc.)
+- `--flush` clears old data first; `--dry-run` previews without writing.
 
 ### Lead Assignment
 
