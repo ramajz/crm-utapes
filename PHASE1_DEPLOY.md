@@ -78,6 +78,57 @@ Manager: manager@crm.com / password
 CS: siti@crm.com / password
 ```
 
+## 🗄️ Cache Store & Cache Locks (penting untuk Auto-Assign Lead)
+
+Aplikasi memakai **`CACHE_STORE=database`** (bukan Redis) — baik di `.env` lokal maupun `.env.example`. Setup ini **sudah benar dan cukup** untuk fitur auto-assign lead (`LeadAssignmentService` memakai `Cache::lock`).
+
+### Kenapa `Cache::lock` tetap berfungsi tanpa Redis
+
+- Laravel `DatabaseStore` mengimplementasikan `LockProvider` (`vendor/laravel/framework/src/Illuminate/Cache/DatabaseStore.php`)
+- Lock disimpan di tabel **`cache_locks`** — dibuat otomatis oleh migrasi default `0001_01_01_000001_create_cache_table.php`
+- `DatabaseLock::acquire()` melakukan `INSERT` atomik (unique constraint pada kolom `key`); jika key sudah ada, lock hanya di-reassign jika sudah expired atau milik owner yang sama
+- Karena lock hidup di database, mutual exclusion **aman antar-proses/worker** selama semua worker memakai koneksi DB yang sama (NeonDB shared)
+
+### Env vars yang relevan
+
+```env
+CACHE_STORE=database
+DB_CACHE_CONNECTION=           # kosong = pakai koneksi default (PostgreSQL production)
+DB_CACHE_LOCK_CONNECTION=      # kosong = pakai koneksi lock yang sama
+DB_CACHE_TABLE=cache
+DB_CACHE_LOCK_TABLE=           # kosong = default 'cache_locks'
+QUEUE_CONNECTION=database
+SESSION_DRIVER=database
+```
+
+> Pada praktiknya cukup `CACHE_STORE=database` — opsi lainnya dibiarkan kosong agar memakai default.
+
+### Checklist saat deploy/update production
+
+1. `php artisan migrate` — **wajib** agar tabel `cache` dan `cache_locks` ada di PostgreSQL (dibuat oleh migrasi default)
+2. Verifikasi tabel ada di PostgreSQL: `SELECT to_regclass('cache_locks');`
+3. Pastikan **semua worker** (web + queue) memakai DB yang sama
+
+### Kapan upgrade ke Redis (opsional)
+
+Redis **tidak wajib** untuk kebenaran `Cache::lock`. Pertimbangkan upgrade jika:
+
+- Dashboard/cache mulai berat dan ingin performa lebih tinggi
+- Ingin TTL pruning yang lebih efisien dibanding tabel `cache` di PostgreSQL
+
+Langkah upgrade (jika diperlukan nanti):
+
+1. Tambah service Redis di Coolify
+2. Set env: `CACHE_STORE=redis`, `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`
+3. Install extension redis: `docker-php-ext-install redis` di Dockerfile
+
+### Yang TIDAK boleh dipakai di production
+
+- `CACHE_STORE=array` — lock hanya berlaku dalam satu proses (dipakai di test suite saja)
+- `CACHE_STORE=memcached` — `MemcachedStore` **tidak** mengimplementasikan `LockProvider` → `Cache::lock` tidak akan berfungsi
+
+---
+
 ## 📋 Fase Selanjutnya (Phase 2)
 
 1. Domain setup: `crm.utapesseken.co` → Cloudflare + SSL
