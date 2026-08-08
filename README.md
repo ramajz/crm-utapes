@@ -1,30 +1,56 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# CRM-Utapes
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+CRM untuk Utapes — lead management, customer tracking, webhook handling.
+**Stack:** Laravel 11 + Livewire + Alpine.js + Tailwind CSS. Production: Coolify (VPS) + NeonDB PostgreSQL. Lokal: SQLite.
 
-## CRM-Utapes
+---
 
-CRM lead management untuk Utapes berbasis Laravel, Livewire, Alpine.js, dan Tailwind CSS.
+## ⚡ Source of Truth — Data Paid/Closing (2026-08-07)
 
-### Current Features
+> **Baca AGENTS.md + DATA_ACUAN.md dulu sebelum sentuh data.** Ringkasan:
+
+| Metrik | Sumber | Juli 2026 |
+|--------|--------|-----------|
+| **Closing / Paid** | `orders.paid_time` (Scalev) | **863** |
+| **Revenue** | `SUM(orders.gross_revenue)` | **Rp 480.475.000** |
+| **Lead** (order masuk) | NocoBase (excl offline_store) | 17.538 |
+
+Aturan kunci: **jangan filter `payment_status='paid'`** (order yang di-revert tetap dihitung di bulan paid_time-nya); per-CS group by `orders.handler_id`; offline store diabaikan.
+
+---
+
+## 🧩 Fitur & Modul
+
+### 0. Fitur Utama
 
 - Lead and customer management with follow-up status, funnel stage, notes, and audit history.
 - Scalev webhook sync for orders, payments, customers, and leads.
-- Automatic lead assignment to active CS handlers.
-- Assignment strategies: `least_loaded` (default) and `round_robin`.
-- **Wajib Follow-Up**: Manager marks priority leads; CS sees them in a dedicated menu and marks them done.
-- **Bulk Reassign CS**: Manager moves multiple leads to another CS at once.
-- **Branches**: Lumajang & Kediri with NocoBase mapping (`branch_id` on leads, orders, handlers).
-- **WhatsApp Message Templates**: Predefined templates with dynamic variables (`{nama}`, `{order_id}`, `{size}`, `{total}`, `{handler}`) that open `wa.me` with a pre-filled message.
+- **Automatic lead assignment** to active CS handlers — strategi `least_loaded` (default) dan `round_robin`, bisa diatur via `.env` (`LEAD_AUTO_ASSIGN`, `LEAD_ASSIGN_STRATEGY`).
+- **Wajib Follow-Up**: manager/admin menandai lead prioritas; CS melihatnya di menu khusus dan menandai selesai.
+- **Bulk Reassign CS**: manager memindahkan banyak lead ke CS lain sekaligus.
+- **Branches**: Lumajang & Kediri dengan NocoBase mapping (`branch_id` pada leads, orders, handlers).
+- **WhatsApp Message Templates**: template pesan dengan variabel dinamis (`{nama}`, `{order_id}`, `{size}`, `{total}`, `{handler}`) yang terbuka di `wa.me` dengan pesan terisi — CS bisa pilih template & edit sebelum kirim.
 - Local development with SQLite; production uses PostgreSQL.
 
-### Import Real Data (AppScript)
+### 1. Ingest Order Scalev (tabel `orders` + `order_items`)
+Sumber kebenaran order (68.635 order historis dari `Webhook_Logs.csv`).
 
+```bash
+# Backfill historis (idempotent, bisa diulang):
+php artisan scalev:import --path=database/imports/Webhook_Logs.csv
+php artisan scalev:import --dry-run   # preview tanpa tulis DB
+```
+
+**Live sync:** `POST /api/webhook/scalev` → `ScalevOrderSync::processEvent()` (upsert order + items + customer + handler). Auth: header `X-Scalev-Secret` (env `SCALEV_WEBHOOK_SECRET`).
+
+### 2. Migrasi dari Google Sheets (legacy → DB)
+```bash
+php artisan migrate:sheets --path=database/imports   # Looker_Master.csv + Customer_Master.csv
+php artisan migrate:sheets --dry-run
+```
+Import lead (Looker_Master) + customer (Customer_Master) dari export Google Sheets. Idempotent (upsert by key), handler/customer auto-create.
+
+### 3. Import Data Real (AppScript)
 ```bash
 php artisan migrate:sheets --looker="App-Utapes - Leads_Jul_2026.csv" --flush
 ```
@@ -33,68 +59,93 @@ php artisan migrate:sheets --looker="App-Utapes - Leads_Jul_2026.csv" --flush
 - Maps CS aliases to canonical names (Lana → Hafiz, Kiki ternyata → Kiki, etc.)
 - `--flush` clears old data first; `--dry-run` previews without writing.
 
-### Lead Assignment
+### 4. Dashboard (`/dashboard`)
+- **Closing & revenue** = `orders.paid_time` (Scalev) — chart harian + per handler
+- **Total & followed-up lead** = `leads` (intake CRM)
+- Per-CS: closing/revenue dari `orders.handler_id`, lead dari `leads.handler_id`
 
-Configure optional assignment behavior in `.env`:
+### 5. Lead Management
+- CRUD lead + detail (`/leads`, `/leads/{id}`)
+- Update status lead + history (`LeadHistory`), toast + auto-reload
+- `last_update_at` di leads (tracking follow-up terakhir)
+- Auto-assign: lead baru tanpa handler di-assign otomatis ke CS aktif (lock anti race condition)
 
+### 6. Follow-up CS via WhatsApp — Template Pesan (bukan WABA)
+Fitur bantu CS follow-up: halaman detail lead menampilkan **pilihan template pesan** (kategori cold/warm/hot). Klik template → textarea pesan terisi (variabel `{nama}`, `{order_id}`, dll. sudah dirender), CS bisa edit, lalu **Kirim WA** → tab WA terbuka dengan pesan terisi. Ini murni fitur internal CRM, **tidak terkait chatbot WABA**.
+
+Alur:
+1. Halaman detail lead → pilih **template** di kartu "Template Pesan WhatsApp" — textarea muncul dengan pesan terisi
+2. CS edit pesan sesuai kebutuhan, klik **Kirim WA** (`wa.me/<no_customer>?text=<pesan>`) — tab WA terbuka
+3. Balik ke CRM → modal **"Kembali dari WhatsApp!"** muncul otomatis (`showWaNotesModal` event)
+4. Form notes aktif — CS isi **Status FU**, **Notes**, **Ukuran (size)**
+5. Simpan → tercatat di `lead_histories`
+
+> **Kelola template**: manager/admin CRUD template di `/templates` (`WhatsAppTemplateController`). Komponen lain: `app/Livewire/UpdateLeadStatus.php` + `resources/views/livewire/update-lead-status.blade.php`. Event: `openUpdateModal`, `showWaNotesModal`.
+> ⚠️ **Beda dengan WABA**: template WABA (9 template chatbot) itu project terpisah di `/home/rmjz/utapes-waba-templates.md` (masih draft) — jangan dicampur.
+
+### 7. Wajib Follow-Up & Reassign
+- **Tandai Wajib FU**: manager/admin menandai lead dari daftar lead (tombol di `leads/index`) — `follow_up_required=true`, status `pending`
+- **Menu Follow-Up** (`/leads/follow-up`): daftar lead wajib FU — CS hanya lihat miliknya, manager/admin bisa filter handler/cabang/status/rentang tanggal; pending di atas
+- **Complete**: CS menandai selesai → `follow_up_status=done` + `follow_up_completed_at`
+- **Bulk Reassign**: pilih banyak lead → pindah ke satu CS (`/leads/bulk-reassign`)
+
+### 8. Lead Assignment (auto-assign)
+```bash
+# Preview / assign lead yang belum punya handler:
+php artisan leads:assign-unassigned --dry-run
+php artisan leads:assign-unassigned
+```
+
+Config di `.env`:
 ```env
 LEAD_AUTO_ASSIGN=true
 LEAD_ASSIGN_STRATEGY=least_loaded
 ```
 
-To preview or assign existing leads without a handler:
+### 9. Services
+| Service | Fungsi |
+|---------|--------|
+| `ScalevOrderSync` | Upsert order/items/customer/handler dari webhook |
+| `UtmParserService` | Klasifikasi traffic: `cpc/ppc/paid/ads` atau `fbads/googleads` → **Ads**; ada UTM → **Organik**; tanpa UTM → **Direct** |
+| `LoyaltyService` | Deteksi customer **new/repeat** by phone + `findOrCreate` (lock anti race condition, increment total_orders/total_spend) |
+| `LeadAssignmentService` | Auto-assign lead ke CS aktif (`least_loaded` / `round_robin`) dengan assignment lock |
+| `LeadService` | Statistik handler (closing/revenue/lead) untuk dashboard + markFollowUp/completeFollowUp/reassignHandler/bulkReassign |
 
+### 10. Laporan Bulanan (tools)
 ```bash
-php artisan leads:assign-unassigned --dry-run
-php artisan leads:assign-unassigned
+python3 scripts/join_laporan.py --bulan 2026-07 --csv "Leads_Jul_2026.csv"
+```
+Output: `laporan-YYYY-MM.md` (draft lengkap) + `master-YYYY-MM.csv` (tabel join per order). Formulasi lengkap: **DATA_ACUAN.md**.
+
+---
+
+## 🔒 Webhook Auth
+- Header: `X-Scalev-Secret: <SCALEV_WEBHOOK_SECRET>`
+- Tanpa secret valid → 401. Test: `tests/Feature/ScalevWebhookTest.php`
+
+---
+
+## 🗄️ Database (migration utama)
+| Tabel | Isi |
+|-------|-----|
+| `orders` | Sumber kebenaran order Scalev (paid_time, gross_revenue, handler_id, branch_id) |
+| `order_items` | Item per order |
+| `leads` | Lead CRM (funnel, status FU, UTM, handler, branch_id, follow_up_required/status/completed_at) |
+| `lead_histories` | Riwayat perubahan status lead |
+| `customers` | Customer (total_orders, total_spend) |
+| `handlers` | CS / handler (branch_id) |
+| `branches` | Cabang (Lumajang, Kediri) + mapping NocoBase |
+| `whatsapp_templates` | Template pesan WA (category cold/warm/hot, is_active) |
+| `webhook_logs` | Log mentah webhook masuk |
+
+---
+
+## 🧪 Testing
+```bash
+php artisan migrate:fresh --seed
+php artisan test    # ScalevWebhookTest, LeadAutoAssignTest, FollowUpReassignTest, TemplateWaTest
 ```
 
-## About Laravel
-
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
-
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
-
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
-
-## Learning Laravel
-
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
-
-```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
-```
-
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
-
-## Contributing
-
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
-
-## Code of Conduct
-
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
-
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+## 🚀 Deployment
+- Push `main` → Coolify auto-deploy. Jangan pernah push kode rusak ke `main`.
+- Detail: `PHASE1_DEPLOY.md`, lokal: `LOCAL_DEV.md`

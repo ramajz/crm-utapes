@@ -29,12 +29,17 @@ class DashboardController extends Controller
 
         if ($user->isCs() && $handler) {
             // CS Personal Dashboard
-            $query = Lead::byHandler($handler->id)->byDateRange($startDate, $endDate);
-            $stats = $this->leadService->getHandlerStats(
-                $handler->id,
-                $startDate,
-                $endDate
-            );
+            $handlerStats = $this->buildHandlerStats($startDate, $endDate, $handler->id);
+            $row = $handlerStats->firstWhere('handler_id', $handler->id);
+            $stats = [
+                'total' => $row['total'] ?? 0,
+                'followed_up' => $row['followed_up'] ?? 0,
+                'not_followed_up' => $row['not_followed_up'] ?? 0,
+                'closing' => $row['closing'] ?? 0,
+                'total_revenue' => $row['revenue'] ?? 0,
+                'conversion_rate' => $row['conversion_rate'] ?? 0,
+                'avg_response_time_minutes' => $row['avg_response_time_minutes'] ?? null,
+            ];
         } else {
             // Admin/Manager Dashboard
             $query = Lead::query()->byDateRange($startDate, $endDate);
@@ -44,33 +49,37 @@ class DashboardController extends Controller
             $closingQuery = Order::query()
                 ->whereBetween('paid_time', [$startDate, Carbon::parse($endDate)->endOfDay()]);
 
+            // Statistik total/followed_up/not_followed_up dalam satu pass (leads).
+            $leadStats = (clone $query)
+                ->selectRaw('COUNT(*) as total')
+                ->selectRaw("SUM(CASE WHEN status_fu <> 'new' THEN 1 ELSE 0 END) as followed_up")
+                ->selectRaw("SUM(CASE WHEN status_fu = 'new' THEN 1 ELSE 0 END) as not_followed_up")
+                ->first();
+
+            // Closing & revenue dalam satu pass (orders, sumber kebenaran Scalev).
+            $closeStats = (clone $closingQuery)
+                ->selectRaw('COUNT(*) as closing')
+                ->selectRaw('COALESCE(SUM(gross_revenue), 0) as total_revenue')
+                ->first();
+
             $stats = [
-                'total' => (clone $query)->count(),
-                'followed_up' => (clone $query)->followedUp()->count(),
-                'not_followed_up' => (clone $query)->notFollowedUp()->count(),
-                'closing' => (clone $closingQuery)->count(),
-                'total_revenue' => (clone $closingQuery)->sum('gross_revenue'),
+                'total' => (int) ($leadStats->total ?? 0),
+                'followed_up' => (int) ($leadStats->followed_up ?? 0),
+                'not_followed_up' => (int) ($leadStats->not_followed_up ?? 0),
+                'closing' => (int) ($closeStats->closing ?? 0),
+                'total_revenue' => (int) ($closeStats->total_revenue ?? 0),
                 'conversion_rate' => 0,
             ];
 
             $total = $stats['total'];
             $stats['conversion_rate'] = $total > 0 ? round(($stats['closing'] / $total) * 100, 2) : 0;
 
-            // Average response time (all handlers) — computed in PHP for DB compatibility.
+            // Rata-rata response time (semua handler) — dihitung di SQL agar DB-compatible.
             // Basis: timestamp (lead masuk) → first_replied_at, atau last_update_at
             // (proxy waktu respon) untuk data migrasi yang tidak punya first_replied_at.
-            $repliedLeads = (clone $query)
-                ->where('status_fu', '!=', 'new')
-                ->whereNotNull('last_update_at')
-                ->select('timestamp', 'last_update_at', 'first_replied_at')
-                ->get();
-            $totalMinutes = 0;
-            $count = $repliedLeads->count();
-            foreach ($repliedLeads as $l) {
-                $end = $l->first_replied_at ?? $l->last_update_at;
-                $totalMinutes += $l->timestamp->diffInMinutes($end);
-            }
-            $stats['avg_response_time_minutes'] = $count > 0 ? round($totalMinutes / $count) : null;
+            $stats['avg_response_time_minutes'] = $this->avgResponseTimeMinutes(
+                (clone $query)->where('status_fu', '!=', 'new')->whereNotNull('last_update_at')
+            );
 
             // Performa per CS (hanya untuk admin/manager)
             $handlerStats = $this->buildHandlerStats($startDate, $endDate);
@@ -106,61 +115,109 @@ class DashboardController extends Controller
             $day->addDay();
         }
 
-        $funnelData = (clone $query)
-            ->select('funnel_stage', DB::raw('count(*) as count'))
-            ->groupBy('funnel_stage')
-            ->get();
+        // Distribusi funnel / status follow-up / traffic — satu pass: hasil union
+        // dikelompokkan per kategori dan kolom asal, dibaca di PHP menjadi 3 collection.
+        $breakdownData = (clone $query)
+            ->select(
+                DB::raw("'funnel' as chart"),
+                'funnel_stage',
+                DB::raw("NULL as status_fu"),
+                DB::raw("NULL as traffic_type"),
+                DB::raw("COUNT(*) as count")
+            )
+            ->groupBy(DB::raw("'funnel'"), 'funnel_stage')
+            ->union(
+                (clone $query)
+                    ->select(
+                        DB::raw("'status' as chart"),
+                        DB::raw("NULL as funnel_stage"),
+                        'status_fu',
+                        DB::raw("NULL as traffic_type"),
+                        DB::raw("COUNT(*) as count")
+                    )
+                    ->groupBy(DB::raw("'status'"), 'status_fu')
+            )
+            ->union(
+                (clone $query)
+                    ->select(
+                        DB::raw("'traffic' as chart"),
+                        DB::raw("NULL as funnel_stage"),
+                        DB::raw("NULL as status_fu"),
+                        'traffic_type',
+                        DB::raw("COUNT(*) as count")
+                    )
+                    ->groupBy(DB::raw("'traffic'"), 'traffic_type')
+            )
+            ->get()
+            ->groupBy('chart');
 
-        $statusData = (clone $query)
-            ->select('status_fu', DB::raw('count(*) as count'))
-            ->groupBy('status_fu')
-            ->get();
-
-        $trafficData = (clone $query)
-            ->select('traffic_type', DB::raw('count(*) as count'))
-            ->groupBy('traffic_type')
-            ->get();
+        $funnelData = $breakdownData->get('funnel', collect())
+            ->map(fn ($row) => ['funnel_stage' => $row->funnel_stage, 'count' => (int) $row->count])
+            ->values();
+        $statusData = $breakdownData->get('status', collect())
+            ->map(fn ($row) => ['status_fu' => $row->status_fu, 'count' => (int) $row->count])
+            ->values();
+        $trafficData = $breakdownData->get('traffic', collect())
+            ->map(fn ($row) => ['traffic_type' => $row->traffic_type, 'count' => (int) $row->count])
+            ->values();
 
         return view('dashboard', compact('stats', 'startDate', 'endDate', 'dailyData', 'funnelData', 'statusData', 'trafficData', 'handlerStats'));
     }
 
-    private function buildHandlerStats(string $startDate, string $endDate): \Illuminate\Support\Collection
+    /**
+     * Rata-rata response time dalam menit (dibulatkan), dihitung via SQL:
+     * menit = JULIANDAY(end) - JULIANDAY(start) → 24 jam * 60 menit.
+     * Berlaku konsisten di SQLite (julianday) dan PostgreSQL (julianday di-extract).
+     * Basis: timestamp (lead masuk) → first_replied_at, atau last_update_at
+     * (proxy waktu respon) untuk data migrasi yang tidak punya first_replied_at.
+     */
+    private function avgResponseTimeMinutes($baseQuery): ?int
+    {
+        $end = DB::raw("COALESCE(first_replied_at, last_update_at)");
+
+        $row = (clone $baseQuery)
+            ->selectRaw("COUNT(*) as count")
+            ->selectRaw("SUM((JULIANDAY(COALESCE(first_replied_at, last_update_at)) - JULIANDAY(timestamp)) * 24 * 60) as total_minutes")
+            ->first();
+
+        $count = (int) ($row->count ?? 0);
+
+        if ($count === 0) {
+            return null;
+        }
+
+        return (int) round((float) ($row->total_minutes ?? 0) / $count);
+    }
+
+    private function buildHandlerStats(string $startDate, string $endDate, ?int $onlyHandlerId = null): \Illuminate\Support\Collection
     {
         $endOfDay = Carbon::parse($endDate)->endOfDay();
 
-        // Leads masuk per handler (by timestamp)
+        // Leads masuk per handler (by timestamp): total, followed_up, not_followed_up,
+        // jumlah responden & total menit response (SUM diff) dalam SATU pass.
         $leadAgg = Lead::whereBetween('timestamp', [$startDate, $endOfDay])
-            ->select(
-                'handler_id',
-                DB::raw('COUNT(*) as total'),
-                DB::raw("SUM(CASE WHEN status_fu <> 'new' THEN 1 ELSE 0 END) as followed"),
-                DB::raw("SUM(CASE WHEN status_fu = 'new' THEN 1 ELSE 0 END) as not_followed")
-            )
+            ->when($onlyHandlerId, fn ($q) => $q->where('handler_id', $onlyHandlerId))
+            ->select('handler_id')
+            ->selectRaw('COUNT(*) as total')
+            ->selectRaw("SUM(CASE WHEN status_fu <> 'new' THEN 1 ELSE 0 END) as followed")
+            ->selectRaw("SUM(CASE WHEN status_fu = 'new' THEN 1 ELSE 0 END) as not_followed")
+            ->selectRaw("SUM(CASE WHEN status_fu <> 'new' AND last_update_at IS NOT NULL THEN 1 ELSE 0 END) as resp_count")
+            ->selectRaw("SUM(CASE WHEN status_fu <> 'new' AND last_update_at IS NOT NULL THEN (JULIANDAY(COALESCE(first_replied_at, last_update_at)) - JULIANDAY(timestamp)) * 24 * 60 ELSE 0 END) as resp_sum_minutes")
             ->groupBy('handler_id')
             ->get()
             ->keyBy('handler_id');
 
-        // Closing & revenue per handler berdasarkan orders.paid_time (Scalev)
+        // Closing & revenue per handler berdasarkan orders.paid_time (Scalev).
+        // Orders tanpa handler (NULL) tidak dipakai di sini — masuk baris "Tanpa CS".
         $closeAgg = Order::whereBetween('paid_time', [$startDate, $endOfDay])
+            ->when($onlyHandlerId, fn ($q) => $q->where('handler_id', $onlyHandlerId))
             ->whereNotNull('handler_id')
-            ->select('handler_id', DB::raw('COUNT(*) as closing'), DB::raw('SUM(gross_revenue) as revenue'))
+            ->select('handler_id')
+            ->selectRaw('COUNT(*) as closing')
+            ->selectRaw('COALESCE(SUM(gross_revenue), 0) as revenue')
             ->groupBy('handler_id')
             ->get()
             ->keyBy('handler_id');
-
-        // Rata-rata response time per handler — dihitung di PHP
-        $responseByHandler = [];
-        Lead::whereBetween('timestamp', [$startDate, $endOfDay])
-            ->where('status_fu', '!=', 'new')
-            ->whereNotNull('last_update_at')
-            ->whereNotNull('handler_id')
-            ->get(['handler_id', 'timestamp', 'last_update_at', 'first_replied_at'])
-            ->each(function ($l) use (&$responseByHandler) {
-                $end = $l->first_replied_at ?? $l->last_update_at;
-                $minutes = $l->timestamp->diffInMinutes($end);
-                $responseByHandler[$l->handler_id]['sum'] = ($responseByHandler[$l->handler_id]['sum'] ?? 0) + $minutes;
-                $responseByHandler[$l->handler_id]['count'] = ($responseByHandler[$l->handler_id]['count'] ?? 0) + 1;
-            });
 
         // Leads tanpa CS (handler_id NULL) — agar jumlah baris konsisten dengan statistik dashboard
         $unassignedLead = Lead::whereBetween('timestamp', [$startDate, $endOfDay])
@@ -174,42 +231,54 @@ class DashboardController extends Controller
 
         $unassignedClose = Order::whereBetween('paid_time', [$startDate, $endOfDay])
             ->whereNull('handler_id')
-            ->selectRaw('COUNT(*) as closing, SUM(gross_revenue) as revenue')
+            ->selectRaw('COUNT(*) as closing, COALESCE(SUM(gross_revenue), 0) as revenue')
             ->first();
 
-        $handlerIds = $leadAgg->keys()->merge($closeAgg->keys())->unique();
+        $rows = collect();
 
-        $rows = Handler::whereIn('id', $handlerIds)->orderBy('name')->get()
-            ->map(function ($handler) use ($leadAgg, $closeAgg, $responseByHandler) {
-                $lead = $leadAgg[$handler->id] ?? null;
-                $close = $closeAgg[$handler->id] ?? null;
-                $total = (int) ($lead->total ?? 0);
-                $closing = (int) ($close->closing ?? 0);
-                $resp = $responseByHandler[$handler->id] ?? null;
+        if ($onlyHandlerId) {
+            $handlerIds = collect([$onlyHandlerId]);
+        } else {
+            $handlerIds = $leadAgg->keys()->merge($closeAgg->keys())->unique();
+        }
 
-                return [
-                    'name' => $handler->name,
-                    'initial' => strtoupper(substr($handler->name, 0, 1)),
-                    'total' => $total,
-                    'followed_up' => (int) ($lead->followed ?? 0),
-                    'not_followed_up' => (int) ($lead->not_followed ?? 0),
-                    'closing' => $closing,
-                    'revenue' => (int) ($close->revenue ?? 0),
-                    'conversion_rate' => $total > 0 ? round(($closing / $total) * 100, 2) : 0,
-                    'avg_response_time_minutes' => ($resp['count'] ?? 0) > 0 ? round($resp['sum'] / $resp['count']) : null,
-                ];
-            });
+        $handlers = Handler::whereIn('id', $handlerIds)->orderBy('name')->get();
 
-        if ((int) $unassignedLead->total > 0 || (int) $unassignedClose->closing > 0) {
+        foreach ($handlers as $handler) {
+            $lead = $leadAgg[$handler->id] ?? null;
+            $close = $closeAgg[$handler->id] ?? null;
+            $total = (int) ($lead->total ?? 0);
+            $closing = (int) ($close->closing ?? 0);
+            $respCount = (int) ($lead->resp_count ?? 0);
+
             $rows->push([
+                'handler_id' => $handler->id,
+                'name' => $handler->name,
+                'initial' => strtoupper(substr($handler->name, 0, 1)),
+                'total' => $total,
+                'followed_up' => (int) ($lead->followed ?? 0),
+                'not_followed_up' => (int) ($lead->not_followed ?? 0),
+                'closing' => $closing,
+                'revenue' => (int) ($close->revenue ?? 0),
+                'conversion_rate' => $total > 0 ? round(($closing / $total) * 100, 2) : 0,
+                'avg_response_time_minutes' => $respCount > 0 ? (int) round((float) ($lead->resp_sum_minutes ?? 0) / $respCount) : null,
+            ]);
+        }
+
+        $unassignedTotal = (int) $unassignedLead->total;
+        $unassignedClosing = (int) $unassignedClose->closing;
+
+        if ($unassignedTotal > 0 || $unassignedClosing > 0) {
+            $rows->push([
+                'handler_id' => null,
                 'name' => 'Tanpa CS (unassigned)',
                 'initial' => '?',
-                'total' => (int) $unassignedLead->total,
+                'total' => $unassignedTotal,
                 'followed_up' => (int) $unassignedLead->followed,
                 'not_followed_up' => (int) $unassignedLead->not_followed,
-                'closing' => (int) $unassignedClose->closing,
+                'closing' => $unassignedClosing,
                 'revenue' => (int) $unassignedClose->revenue,
-                'conversion_rate' => (int) $unassignedLead->total > 0 ? round(((int) $unassignedClose->closing / (int) $unassignedLead->total) * 100, 2) : 0,
+                'conversion_rate' => $unassignedTotal > 0 ? round(($unassignedClosing / $unassignedTotal) * 100, 2) : 0,
                 'avg_response_time_minutes' => null,
             ]);
         }

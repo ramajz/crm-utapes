@@ -298,32 +298,41 @@ class LeadService
             $query->byDateRange($startDate, $endDate);
         }
 
-        $total = (clone $query)->count();
-        $followedUp = (clone $query)->followedUp()->count();
-        $notFollowedUp = (clone $query)->notFollowedUp()->count();
+        // Total / followed-up / belum follow-up — satu pass via SUM(CASE WHEN)
+        $leadStats = (clone $query)
+            ->selectRaw('COUNT(*) as total')
+            ->selectRaw("SUM(CASE WHEN status_fu <> 'new' THEN 1 ELSE 0 END) as followed_up")
+            ->selectRaw("SUM(CASE WHEN status_fu = 'new' THEN 1 ELSE 0 END) as not_followed_up")
+            ->first();
+
+        $total = (int) ($leadStats->total ?? 0);
+        $followedUp = (int) ($leadStats->followed_up ?? 0);
+        $notFollowedUp = (int) ($leadStats->not_followed_up ?? 0);
 
         // Closing & revenue berdasarkan kapan order dibayar (orders.paid_time, sumber Scalev)
         $closingQuery = Order::where('handler_id', $handlerId);
         if ($startDate && $endDate) {
             $closingQuery->whereBetween('paid_time', [$startDate, \Illuminate\Support\Carbon::parse($endDate)->endOfDay()]);
         }
-        $closing = $closingQuery->count();
-        $totalRevenue = $closingQuery->sum('gross_revenue');
+        $closeStats = (clone $closingQuery)
+            ->selectRaw('COUNT(*) as closing')
+            ->selectRaw('COALESCE(SUM(gross_revenue), 0) as total_revenue')
+            ->first();
 
-        // Average response time — computed in PHP for DB compatibility.
+        $closing = (int) ($closeStats->closing ?? 0);
+        $totalRevenue = (int) ($closeStats->total_revenue ?? 0);
+
+        // Average response time — dihitung di SQL agar DB-compatible.
         // Basis: timestamp (lead masuk) → first_replied_at, atau last_update_at
         // (proxy waktu respon) untuk data migrasi yang tidak punya first_replied_at.
-        $repliedLeads = (clone $query)
+        $respStats = (clone $query)
             ->where('status_fu', '!=', 'new')
             ->whereNotNull('last_update_at')
-            ->select('timestamp', 'last_update_at', 'first_replied_at')
-            ->get();
-        $totalMinutes = 0;
-        $count = $repliedLeads->count();
-        foreach ($repliedLeads as $l) {
-            $end = $l->first_replied_at ?? $l->last_update_at;
-            $totalMinutes += $l->timestamp->diffInMinutes($end);
-        }
+            ->selectRaw('COUNT(*) as count')
+            ->selectRaw('SUM((JULIANDAY(COALESCE(first_replied_at, last_update_at)) - JULIANDAY(timestamp)) * 24 * 60) as total_minutes')
+            ->first();
+
+        $count = (int) ($respStats->count ?? 0);
 
         return [
             'total' => $total,
@@ -332,7 +341,7 @@ class LeadService
             'closing' => $closing,
             'total_revenue' => $totalRevenue,
             'conversion_rate' => $total > 0 ? round(($closing / $total) * 100, 2) : 0,
-            'avg_response_time_minutes' => $count > 0 ? round($totalMinutes / $count) : null,
+            'avg_response_time_minutes' => $count > 0 ? (int) round((float) ($respStats->total_minutes ?? 0) / $count) : null,
         ];
     }
 }

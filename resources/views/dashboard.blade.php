@@ -344,7 +344,7 @@
             });
 
             // Chart 2: Funnel Stage
-            const funnelData = @json($funnelData);
+            const funnelData = Object.values(@json($funnelData));
             const funnelLabels = funnelData.map(d => d.funnel_stage ? d.funnel_stage.charAt(0).toUpperCase() + d.funnel_stage.slice(1) : 'Unknown');
             const funnelCounts = funnelData.map(d => d.count);
 
@@ -381,7 +381,7 @@
             });
 
             // Chart 3: Status FU
-            const statusData = @json($statusData);
+            const statusData = Object.values(@json($statusData));
             const statusLabels = statusData.map(d => {
                 if (!d.status_fu) return 'Unknown';
                 return d.status_fu.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase());
@@ -440,7 +440,7 @@
             });
 
             // Chart 4: Traffic Type
-            const trafficData = @json($trafficData);
+            const trafficData = Object.values(@json($trafficData));
             const trafficLabels = trafficData.map(d => d.traffic_type ? d.traffic_type.charAt(0).toUpperCase() + d.traffic_type.slice(1) : 'Direct/Unknown');
             const trafficCounts = trafficData.map(d => d.count);
 
