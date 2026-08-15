@@ -17,10 +17,13 @@ Formulasi (kesepakatan DATA_ACUAN.md 2026-08-03):
 Usage:
   python3 join_laporan.py --bulan 2026-07 [--csv /path/Leads_Jul_2026.csv] [--outdir /tmp/out]
 """
-import argparse, csv, json, subprocess, sys, time, urllib.parse
+import argparse, csv, json, os, subprocess, sys, time, urllib.parse
 from collections import Counter, defaultdict
 
 BASE = "https://backoffice.utapesseken.co"
+# Kredensial NocoBase diambil dari env var (jangan hardcode di git)
+NOCOBASE_ACCOUNT = os.environ.get("NOCOBASE_ACCOUNT")
+NOCOBASE_PASSWORD = os.environ.get("NOCOBASE_PASSWORD")
 # 12 CS utama: user_id NocoBase -> nama laporan
 CS_UTAMA = {
     5: "Hafiz", 8: "Farhan", 38: "Kiki", 9: "Ardha", 24: "Yusron", 4: "Erpan",
@@ -36,8 +39,13 @@ def sh(cmd, timeout=60):
     return subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=timeout).stdout
 
 def login():
+    if not NOCOBASE_ACCOUNT or not NOCOBASE_PASSWORD:
+        raise SystemExit(
+            "Kredensial NocoBase belum diset.\n"
+            "Set env var dulu: export NOCOBASE_ACCOUNT=... NOCOBASE_PASSWORD=..."
+        )
     resp = sh(f'''curl -s --max-time 20 -X POST "{BASE}/api/auth:signIn" \
-        -H "Content-Type: application/json" -d '{{"account":"yusrilkhakiki@gmail.com","password":"Stumbling-Lumping1-Footman"}}' ''')
+        -H "Content-Type: application/json" -d '{{"account":"{NOCOBASE_ACCOUNT}","password":"{NOCOBASE_PASSWORD}"}}' ''')
     return json.loads(resp)["data"]["token"]
 
 def nb_count(token, filter_obj):
