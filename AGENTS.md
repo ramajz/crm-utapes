@@ -10,6 +10,24 @@ Stack: Laravel 11 + Livewire + Alpine.js + Tailwind CSS.
 - **Auth**: Laravel Breeze (Livewire)
 - **Frontend**: Livewire components + Alpine.js
 
+## Current Task: Local Monthly Evaluation Dashboard
+
+Before starting CRM dashboard work, **read `DASHBOARD_PRD.md` completely**. This is the active scope for the local evaluation/presentation dashboard. `PRD-v2.md` describes the larger future CRM vision; do not implement its webhook, auto-sync, production, or WABA scope unless Rama explicitly asks.
+
+### Scope and safety
+- Local MacBook only. No deployment/live hosting, no production DB writes, no API/webhook/n8n integration.
+- The dashboard imports two monthly CSVs manually: NocoBase and AppScript, joins them, computes report metrics, displays the complete monthly report, and exports segmentation CSVs for manual Everpro upload.
+- Use the metrics and source-of-truth rules in `DATA_ACUAN.md` and `DASHBOARD_PRD.md`. NocoBase owns lead/paid/revenue; AppScript owns traffic/funnel/status/notes.
+- Never fabricate a match between NocoBase and AppScript. Join on `order_id` only when it matches; preserve unmatched records with explicit match status.
+- Treat phone numbers and customer identifiers as sensitive. Avoid displaying raw customer PII in demo/presentation mode; provide a masked/demo mode.
+
+### Workflow
+1. Read `DASHBOARD_PRD.md`, `DATA_ACUAN.md`, relevant models/services/migrations, and current git status.
+2. Report a concise implementation plan and estimate before broad edits.
+3. Implement in small steps, local only; use Laravel 11 + Livewire + Alpine + Tailwind; Eloquent/Query Builder only; preserve SQLite/PostgreSQL compatibility.
+4. Verify imported row counts, then compare every metric with report baselines in `DASHBOARD_PRD.md` (Sep 2026 first; Jul/Aug regression).
+5. Do not commit or push unless Rama explicitly asks.
+
 ## Data Paid / Closing — Source of Truth (Scalev)
 
 **Context:** CRM receives order data from Scalev. There are THREE different systems that count "paid/closing", and they disagree:
