@@ -1,23 +1,31 @@
 FROM php:8.4-fpm-alpine
 
 RUN apk add --no-cache \
-    curl git nginx supervisor nodejs npm zip unzip postgresql-dev oniguruma-dev libzip-dev \
+    curl git zip unzip nodejs npm postgresql-dev oniguruma-dev libzip-dev linux-headers \
     && docker-php-ext-install -j$(nproc) pdo_pgsql mbstring bcmath zip intl opcache
 
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
-
 WORKDIR /var/www/html
+
+COPY composer.json composer.lock ./
+RUN composer install --no-dev --no-scripts --no-interaction --optimize-autoloader
+
+COPY package.json package-lock.json ./
+RUN npm install --ignore-scripts
+
 COPY . .
 
-RUN composer install --no-dev --no-interaction --optimize-autoloader && \
-    npm ci && CI=true npm run build && \
-    php artisan migrate --force && \
-    php artisan storage:link && \
-    chmod -R 777 storage bootstrap/cache
+# Build assets TANPA hooks npm (lesson: --ignore-scripts)
+RUN npm run build \
+    && composer install --no-dev --optimize-autoloader --no-interaction \
+    && mkdir -p storage/{app/public,framework/{cache/data,sessions,testing,views},logs} bootstrap/cache \
+    && chown -R www-data:www-data storage bootstrap/cache \
+    && chmod -R 775 storage bootstrap/cache \
+    && php artisan storage:link 2>/dev/null || true
 
-RUN printf '%s\n' 'server {' '    listen 80;' '    root /var/www/html/public;' '    index index.php;' '    charset utf-8;' '    location / { try_files $uri $uri/ /index.php?$query_string; }' '    location ~ \.php$ {' '        fastcgi_pass 127.0.0.1:9000;' '        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;' '        include fastcgi_params;' '    }' '}' > /etc/nginx/http.d/default.conf
+# Migrate + cache dijalankan saat STARTUP (env baru sudah terbaca), bukan saat build
+COPY docker/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
-RUN printf '%s\n' '[supervisord]' 'nodaemon=true' '' '[program:php-fpm]' 'command=php-fpm -F' '' '[program:nginx]' 'command=nginx -g "daemon off;"' > /etc/supervisord.conf
-
-EXPOSE 80
-CMD ["supervisord", "-c", "/etc/supervisord.conf"]
+EXPOSE 9000
+ENTRYPOINT ["/entrypoint.sh"]

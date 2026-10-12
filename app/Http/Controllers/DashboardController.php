@@ -125,7 +125,7 @@ class DashboardController extends Controller
                 DB::raw("NULL as traffic_type"),
                 DB::raw("COUNT(*) as count")
             )
-            ->groupBy(DB::raw("'funnel'"), 'funnel_stage')
+            ->groupBy('funnel_stage')
             ->union(
                 (clone $query)
                     ->select(
@@ -135,7 +135,7 @@ class DashboardController extends Controller
                         DB::raw("NULL as traffic_type"),
                         DB::raw("COUNT(*) as count")
                     )
-                    ->groupBy(DB::raw("'status'"), 'status_fu')
+                    ->groupBy('status_fu')
             )
             ->union(
                 (clone $query)
@@ -146,7 +146,7 @@ class DashboardController extends Controller
                         'traffic_type',
                         DB::raw("COUNT(*) as count")
                     )
-                    ->groupBy(DB::raw("'traffic'"), 'traffic_type')
+                    ->groupBy('traffic_type')
             )
             ->get()
             ->groupBy('chart');
@@ -165,9 +165,9 @@ class DashboardController extends Controller
     }
 
     /**
-     * Rata-rata response time dalam menit (dibulatkan), dihitung via SQL:
-     * menit = JULIANDAY(end) - JULIANDAY(start) → 24 jam * 60 menit.
-     * Berlaku konsisten di SQLite (julianday) dan PostgreSQL (julianday di-extract).
+     * Rata-rata response time dalam menit (dibulatkan), dihitung via SQL.
+     * Selisih waktu dihitung TimeDiff → aman di SQLite (julianday)
+     * dan PostgreSQL (EXTRACT(EPOCH)).
      * Basis: timestamp (lead masuk) → first_replied_at, atau last_update_at
      * (proxy waktu respon) untuk data migrasi yang tidak punya first_replied_at.
      */
@@ -177,7 +177,7 @@ class DashboardController extends Controller
 
         $row = (clone $baseQuery)
             ->selectRaw("COUNT(*) as count")
-            ->selectRaw("SUM((JULIANDAY(COALESCE(first_replied_at, last_update_at)) - JULIANDAY(timestamp)) * 24 * 60) as total_minutes")
+            ->selectRaw(\App\Support\TimeDiff::minutesBetween('COALESCE(first_replied_at, last_update_at)', 'timestamp') . ' as total_minutes')
             ->first();
 
         $count = (int) ($row->count ?? 0);
@@ -202,7 +202,7 @@ class DashboardController extends Controller
             ->selectRaw("SUM(CASE WHEN status_fu <> 'new' THEN 1 ELSE 0 END) as followed")
             ->selectRaw("SUM(CASE WHEN status_fu = 'new' THEN 1 ELSE 0 END) as not_followed")
             ->selectRaw("SUM(CASE WHEN status_fu <> 'new' AND last_update_at IS NOT NULL THEN 1 ELSE 0 END) as resp_count")
-            ->selectRaw("SUM(CASE WHEN status_fu <> 'new' AND last_update_at IS NOT NULL THEN (JULIANDAY(COALESCE(first_replied_at, last_update_at)) - JULIANDAY(timestamp)) * 24 * 60 ELSE 0 END) as resp_sum_minutes")
+            ->selectRaw("SUM(CASE WHEN status_fu <> 'new' AND last_update_at IS NOT NULL THEN " . \App\Support\TimeDiff::minutesExpr('COALESCE(first_replied_at, last_update_at)', 'timestamp') . " ELSE 0 END) as resp_sum_minutes")
             ->groupBy('handler_id')
             ->get()
             ->keyBy('handler_id');

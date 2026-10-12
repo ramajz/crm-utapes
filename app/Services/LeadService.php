@@ -6,6 +6,7 @@ use App\Models\Lead;
 use App\Models\LeadHistory;
 use App\Models\Handler;
 use App\Models\Order;
+use App\Support\TimeDiff;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
@@ -329,7 +330,7 @@ class LeadService
             ->where('status_fu', '!=', 'new')
             ->whereNotNull('last_update_at')
             ->selectRaw('COUNT(*) as count')
-            ->selectRaw('SUM((JULIANDAY(COALESCE(first_replied_at, last_update_at)) - JULIANDAY(timestamp)) * 24 * 60) as total_minutes')
+            ->selectRaw(TimeDiff::minutesBetween('COALESCE(first_replied_at, last_update_at)', 'timestamp') . ' as total_minutes')
             ->first();
 
         $count = (int) ($respStats->count ?? 0);

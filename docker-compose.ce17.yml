@@ -1,0 +1,25 @@
+services:
+  crm-utapes:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: crm-utapes-app
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
+      APP_URL: https://crm.rmjz.my.id
+      SESSION_SECURE_COOKIE: "true"
+      LOG_CHANNEL: stderr
+    expose:
+      - "9000"
+    networks:
+      - minibio_minibio
+    mem_limit: 768m
+    cpus: 1.0
+
+networks:
+  minibio_minibio:
+    external: true
