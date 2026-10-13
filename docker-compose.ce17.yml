@@ -17,7 +17,7 @@ services:
       - "9000"
     networks:
       - minibio_minibio
-    mem_limit: 768m
+    mem_limit: 1536m
     cpus: 1.0
 
 networks:
