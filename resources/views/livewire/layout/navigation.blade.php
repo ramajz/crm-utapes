@@ -57,6 +57,12 @@ new class extends Component
                             </svg>
                             Wajib FU
                         </x-nav-link>
+                        <x-nav-link :href="route('import.index')" :active="request()->routeIs('import.*')" wire:navigate
+                            class="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200
+                            {{ request()->routeIs('import.*') ? 'bg-white/15 text-white shadow-sm' : 'text-indigo-200 hover:text-white hover:bg-white/10' }}">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                            Import
+                        </x-nav-link>
                         @if(auth()->user()->isManager() || auth()->user()->isAdmin())
                         <x-nav-link :href="route('templates.index')" :active="request()->routeIs('templates.*')" wire:navigate
                             class="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200
@@ -152,6 +158,21 @@ new class extends Component
                 </svg>
                 <span class="font-medium {{ request()->routeIs('leads.follow-up') ? 'text-indigo-600' : '' }}">Wajib FU</span>
             </a>
+
+            @if(auth()->user()->isAdmin())
+            {{-- Import --}}
+            <a href="{{ route('import.index') }}" wire:navigate
+                class="flex flex-col items-center justify-center px-3 py-1.5 rounded-xl text-xs transition-all duration-200 relative
+                {{ request()->routeIs('import.*') ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600' }}">
+                @if(request()->routeIs('import.*'))
+                <span class="absolute -top-0.5 w-6 h-1 rounded-full bg-indigo-600"></span>
+                @endif
+                <svg class="w-6 h-6 mb-0.5" fill="{{ request()->routeIs('import.*') ? 'currentColor' : 'none' }}" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                </svg>
+                <span class="font-medium {{ request()->routeIs('import.*') ? 'text-indigo-600' : '' }}">Import</span>
+            </a>
+            @endif
 
             @if(auth()->user()->isManager() || auth()->user()->isAdmin())
             {{-- Template WA --}}

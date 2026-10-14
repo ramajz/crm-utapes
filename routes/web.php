@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ImportController;
 use App\Http\Controllers\LeadController;
 use App\Http\Controllers\WhatsAppTemplateController;
 use Illuminate\Support\Facades\Route;
@@ -25,6 +26,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // WhatsApp Templates (manager/admin only — di cek di controller)
     Route::resource('templates', WhatsAppTemplateController::class);
+
+    // Import CSV via web (PRD_IMPORT.md fitur A)
+    Route::get('/import', [ImportController::class, 'index'])->name('import.index');
+    Route::post('/import', [ImportController::class, 'store'])->name('import.store');
+    Route::get('/import/status', [ImportController::class, 'status'])->name('import.status');
 });
 
 require __DIR__.'/auth.php';
