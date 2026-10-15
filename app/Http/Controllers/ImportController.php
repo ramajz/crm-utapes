@@ -68,7 +68,9 @@ class ImportController extends Controller
         $file->move($dir, $uploadName);
 
         $logPath = $dir . "/import_{$timestamp}.log";
-        $mode = $request->boolean('dry_run') ? '--dry-run' : '';
+        // Tombol baru mengirim mode=dry_run|import; checkbox lama tetap dry_run=1 (backward compatible)
+        $isDry = $request->input('mode') === 'dry_run' || $request->boolean('dry_run');
+        $mode = $isDry ? '--dry-run' : '';
         $month = $request->input('month'); // opsional, format YYYY-MM
 
         // Jalankan di container yang sama (tanpa docker exec dari dalam container)
@@ -83,9 +85,13 @@ class ImportController extends Controller
         );
         exec($cmd);
 
+        $flash = $isDry
+            ? 'MODE DRY-RUN — preview saja, TIDAK ada data yang ditulis. Lihat ringkasan di bawah.'
+            : 'MODE IMPORT — data ditulis ke database. Pantau progres di bawah.';
+
         return redirect()
             ->route('import.index')
-            ->with('success', 'Import dimulai. Halaman ini otomatis refresh — pantau progresnya di bawah.');
+            ->with('success', $flash);
     }
 
     public function status(): \Illuminate\Http\JsonResponse
