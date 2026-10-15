@@ -80,6 +80,10 @@ class MigrateFromSheetsBatch extends Command
 
         $start = microtime(true);
 
+        // Penanda jam jelas (WIB) — config app timezone tetap UTC, jadi
+        // konversi eksplisit biar gak miskonsepsi waktu.
+        $this->info('Mulai: ' . \Illuminate\Support\Carbon::now('Asia/Jakarta')->format('d M Y H:i') . ' WIB');
+
         $this->info('[1/4] Load map (handler, branch, customer, order_id)...');
         $this->loadMaps();
 

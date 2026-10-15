@@ -14,6 +14,10 @@ COPY package.json package-lock.json ./
 RUN npm install --ignore-scripts
 
 COPY . .
+# Fix permission apapun hasil COPY (tar lokal bisa membawa mode 600 → www-data
+# tidak bisa baca → "Permission denied" saat render view). Lesson #233.
+RUN find app resources routes config database -type f -name "*.php" -exec chmod 644 {} + && \
+    chmod 644 artisan composer.json 2>/dev/null || true
 
 # Build assets TANPA hooks npm (lesson: --ignore-scripts)
 RUN npm run build \

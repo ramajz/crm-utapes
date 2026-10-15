@@ -55,13 +55,17 @@ class ImportController extends Controller
             return back()->with('error', 'Header CSV tidak cocok. Kolom hilang: ' . implode(', ', $missing));
         }
 
-        // Simpan file + salin ke database/imports (dibaca oleh command)
+        // Simpan file ke storage/app/imports (pasti bisa ditulis www-data).
+        // JANGAN pakai database/imports — folder itu sering root-owned
+        // (hasil docker cp) dan bikin copy() gagal 500.
+        // Nama file pakai WIB explicit (config app timezone tetap UTC —
+        // jangan diganti, data historis di DB juga UTC).
         $dir = storage_path(self::IMPORT_DIR);
         File::ensureDirectoryExists($dir);
-        $timestamp = date('Ymd_His');
-        $file->move($dir, "leads_{$timestamp}.csv");
-        $uploadPath = base_path('database/imports/web_upload.csv');
-        File::copy($dir . "/leads_{$timestamp}.csv", $uploadPath);
+        $wib = \Illuminate\Support\Carbon::now('Asia/Jakarta');
+        $timestamp = $wib->format('Ymd_His');
+        $uploadName = "leads_{$timestamp}.csv";
+        $file->move($dir, $uploadName);
 
         $logPath = $dir . "/import_{$timestamp}.log";
         $mode = $request->boolean('dry_run') ? '--dry-run' : '';
@@ -69,8 +73,10 @@ class ImportController extends Controller
 
         // Jalankan di container yang sama (tanpa docker exec dari dalam container)
         $cmd = sprintf(
-            'cd %s && nohup php artisan migrate:sheets-batch --looker=database/imports/web_upload.csv %s %s > %s 2>&1 &',
+            'cd %s && nohup php artisan migrate:sheets-batch --path=%s --looker=%s %s %s > %s 2>&1 &',
             base_path(),
+            escapeshellarg($dir),
+            escapeshellarg($uploadName),
             $mode,
             $month ? '--month=' . escapeshellarg($month) : '--all',
             escapeshellarg($logPath)
@@ -128,7 +134,7 @@ class ImportController extends Controller
             $content = File::get($file->getPathname());
             $jobs[] = [
                 'file' => $file->getFilename(),
-                'started_at' => date('d M Y H:i', $file->getMTime()),
+                'started_at' => \Illuminate\Support\Carbon::createFromTimestamp($file->getMTime(), 'Asia/Jakarta')->format('d M Y H:i WIB'),
                 'done' => str_contains($content, 'Selesai dalam'),
                 'summary' => $this->parseSummary($content),
                 'preview' => implode("\n", array_slice(

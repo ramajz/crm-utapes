@@ -239,7 +239,14 @@ class DashboardController extends Controller
         if ($onlyHandlerId) {
             $handlerIds = collect([$onlyHandlerId]);
         } else {
-            $handlerIds = $leadAgg->keys()->merge($closeAgg->keys())->unique();
+            // keyBy('handler_id') menghasilkan key '' untuk handler_id NULL
+            // (lead tanpa CS) — filter agar tidak masuk whereIn(id, ...)
+            // (PostgreSQL menolak '' untuk bigint).
+            $handlerIds = $leadAgg->keys()
+                ->merge($closeAgg->keys())
+                ->unique()
+                ->filter(fn ($id) => $id !== null && $id !== '')
+                ->values();
         }
 
         $handlers = Handler::whereIn('id', $handlerIds)->orderBy('name')->get();
