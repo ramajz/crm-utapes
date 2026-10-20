@@ -1,8 +1,23 @@
 # PRD — Modul Import Data CRM-Utapes (Web)
 
-> **Status:** DRAFT — siap implementasi setelah Rama approve
+> **Status:** 🟡 Fitur A LIVE (production) · Fitur B DRAFT (belum dikerjakan)
 > **Tanggal:** 13 Oktober 2026
+> **Update status:** 20 Oktober 2026
 > **Owner:** Rama (single user)
+>
+> **CATATAN PENTING — baca sebelum nganggap fitur sudah ada:**
+>
+> | Bagian | Status production | Route | Kode |
+> |--|--|--|--|
+> | **Fitur A** (Import CSV via web) | ✅ **LIVE** | `/import` | `app/Http/Controllers/ImportController.php` + `app/Console/Commands/MigrateFromSheetsBatch.php` |
+> | **Fitur B** (Convert `backup.sql`) | ❌ **BELUM ADA** | — | — |
+>
+> ⚠️ **Route sebenarnya `/import`, bukan `/admin/import`.** PRD ini ditulis
+> sebelum implementasi; route chosen tidak follow spec. Referensi ke
+> `/admin/import` akan 404.
+>
+> ⚠️ **Import gagal diam-diam** kalau session habis — user gak dapat error,
+> cuma redirect balik ke `/login`. Refresh halaman import dulu sebelum upload.
 
 ---
 
@@ -22,30 +37,41 @@ bukan diduplikasi.
 
 ## 3. Feature List
 
-### Fitur A — Import CSV via Web (rutin bulanan)
+### Fitur A — Import CSV via Web (rutin bulanan) — ✅ LIVE
 
-| # | Fitur | Detail |
-|---|-------|--------|
-| A1 | Halaman `/admin/import` | Daftar riwayat import terakhir + tombol upload |
-| A2 | Upload CSV leads | Validasi header (18 kolom standar) + max 20MB |
-| A3 | Pilihan mode | "Semua bulan" atau "bulan tertentu" (deteksi otomatis dari Timestamp) |
-| A4 | Proses background | Jalankan `migrate:sheets-batch` sebagai proses terpisah; halaman auto-refresh menampilkan log |
-| A5 | Ringkasan hasil | Leads insert/update, customers baru, baris dilewati, durasi |
-| A6 | Tombol dry-run | Preview dulu tanpa menulis (wajib tersedia) |
+| # | Fitur | Status | Detail |
+|---|-------|--------|--------|
+| A1 | Halaman import | ✅ | Route **`/import`** (bukan `/admin/import`) — riwayat 5 job terakhir + form upload |
+| A2 | Upload CSV leads | ✅ | Validasi header 18 kolom wajib + maks 20MB, gagal → flash "Kolom hilang: ..." |
+| A3 | Pilihan mode | ✅ | Dropdown bulan (YYYY-MM) atau "Semua bulan di CSV" (default) |
+| A4 | Proses background | ✅ | `exec()` nohup `migrate:sheets-batch`, log di `storage/app/imports/import_*.log` |
+| A5 | Ringkasan hasil | ✅ | Parse regex dari log: insert/update/customers baru/dilewati/durasi |
+| A6 | Tombol dry-run | ✅ | Dua tombol: **Preview (dry-run)** dan **Import** (mode=dry_run vs kosong) |
 
-### Fitur B — Convert NocoBase backup.sql (sekali jalan / migrasi)
+**Cara kerja nyata (bukan spek):**
+- File CSV + log disimpan di `storage/app/imports/` (ownership www-data)
+- Nama file pakai timestamp **WIB**, isi data tetap UTC — lihat `decisions.md` D-004/D-006
+- `runningJob()` cek `ps -eo args | grep -c "[m]igrate:sheets-batch"` — kalau
+  ada proses lain jalan, upload baru **ditolak** dengan flash error
+- Auto-refresh halaman via Alpine polling `GET /import/status`
 
-| # | Fitur | Detail |
-|---|-------|--------|
-| B1 | Upload `backup.sql` | File dari panel database NocoBase (bisa didownload) |
-| B2 | Deteksi format | PostgreSQL dump vs SQLite — tampilkan ke user sebelum jalan |
-| B3 | Preview | Tampilkan tabel yang terdeteksi + jumlah baris + mapping ke tabel CRM |
-| B4 | Konversi | Parse INSERT statement → mapping ke `leads`, `customers`, `orders` |
-| B5 | Laporan mapping | Kolom yang cocok / tidak cocok / dilewati, jujur tanpa asumsi |
+### Fitur B — Convert NocoBase backup.sql (sekali jalan / migrasi) — ❌ BELUM ADA
+
+| # | Fitur | Status | Detail |
+|---|-------|--------|--------|
+| B1 | Upload `backup.sql` | ❌ Draft | File dari panel database NocoBase (bisa didownload) |
+| B2 | Deteksi format | ❌ Draft | PostgreSQL dump vs SQLite — tampilkan ke user sebelum jalan |
+| B3 | Preview | ❌ Draft | Tampilkan tabel yang terdeteksi + jumlah baris + mapping ke tabel CRM |
+| B4 | Konversi | ❌ Draft | Parse INSERT statement → mapping ke `leads`, `customers`, `orders` |
+| B5 | Laporan mapping | ❌ Draft | Kolom yang cocok / tidak cocok / dilewati, jujur tanpa asumsi |
 
 **Catatan B:** mapping final menunggu isi `backup.sql` diketahui (B2-B5
 diimplementasi setelah file contel dilihat). Jangan menebak struktur
 tabel NocoBase.
+
+**Status Feature B = tidak ada kodenya sama sekali.** Kalau butuh migrasi
+NocoBase → CRM, itu pekerjaan baru: bikin controller + command baru dari nol,
+bukan "mengaktifkan" fitur yang sudah ada.
 
 ## 4. Data Rules (dari keputusan rekonsiliasi 2026-10-10)
 
