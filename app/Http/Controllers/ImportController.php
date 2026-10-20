@@ -37,8 +37,36 @@ class ImportController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
+        // PHP membuang file yang melebihi upload_max_filesize SEBELUM Laravel
+        // melihatnya. Akibatnya $_FILES kosong dan pesan default cuma
+        // "The csv field is required" — menyesatkan. Deteksi dulu di sini.
+        $contentLength = (int) ($_SERVER['CONTENT_LENGTH'] ?? 0);
+        $phpUploadLimit = $this->phpBytes(ini_get('upload_max_filesize'));
+        // Catatan: kalau kiriman melebihi post_max_size, PHP membuang SELURUH
+        // body termasuk _token → request berhenti di middleware CSRF (419),
+        // controller ini tidak pernah jalan. Itu sebabnya cek di bawah hanya
+        // menangani rentang upload_max_filesize..post_max_size.
+
+        if (! $request->hasFile('csv') && $contentLength > 0 && $phpUploadLimit > 0 && $contentLength > $phpUploadLimit) {
+            return back()->with('error', sprintf(
+                'File ditolak server sebelum sampai ke aplikasi. Ukuran kiriman %s MB, batas PHP %s MB. '
+                .'Kecilkan CSV-nya (pecah per bulan) atau naikkan upload_max_filesize/post_max_size.',
+                number_format($contentLength / 1048576, 1),
+                number_format($phpUploadLimit / 1048576, 1)
+            ));
+        }
+
+        // Batas validasi diambil dari PHP, bukan angka hardcode — supaya pesan
+        // tidak pernah menjanjikan 20MB sementara PHP cuma menerima 2MB.
+        $maxKb = $phpUploadLimit > 0 ? max(1, (int) floor($phpUploadLimit / 1024)) : 20480;
+
         $request->validate([
-            'csv' => ['required', 'file', 'mimes:csv,txt', 'max:20480'],
+            'csv' => ['required', 'file', 'mimes:csv,txt', 'max:'.$maxKb],
+        ], [
+            'csv.required' => 'File CSV tidak terkirim. Ukuran kiriman '
+                .number_format($contentLength / 1048576, 1).' MB, batas PHP '
+                .number_format($phpUploadLimit / 1048576, 1).' MB.',
+            'csv.max' => 'File CSV terlalu besar (batas server '.number_format($maxKb / 1024, 1).' MB).',
         ]);
 
         if ($this->runningJob()) {
@@ -103,6 +131,27 @@ class ImportController extends Controller
     }
 
     // ─── helpers ────────────────────────────────────────────────
+
+    /**
+     * Konversi nilai ini (upload_max_filesize / post_max_size) ke byte.
+     * Contoh: "2M" => 2097152, "8M" => 8388608, "64m" => 67108864.
+     */
+    private function phpBytes(string|false $value): int
+    {
+        $value = trim((string) $value);
+        if ($value === '') {
+            return 0;
+        }
+        $unit = strtolower(substr($value, -1));
+        $number = (int) $value;
+
+        return match ($unit) {
+            'g' => $number * 1073741824,
+            'm' => $number * 1048576,
+            'k' => $number * 1024,
+            default => $number,
+        };
+    }
 
     private function runningJob(): bool
     {

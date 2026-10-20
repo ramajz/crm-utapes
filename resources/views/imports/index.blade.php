@@ -21,6 +21,22 @@
                     {{ session('error') }}
                 </div>
             @endif
+            {{-- Error validasi. TANPA blok ini, upload yang ditolak tampil seperti
+                 "tidak terjadi apa-apa" (halaman balik ke form kosong, tanpa pesan). --}}
+            @if ($errors->any())
+                <div class="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-800">
+                    <p class="font-semibold mb-1">Upload gagal:</p>
+                    <ul class="list-disc list-inside space-y-0.5">
+                        @foreach ($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                    <p class="mt-2 text-xs text-red-700">
+                        Batas server saat ini — PHP upload: {{ ini_get('upload_max_filesize') }},
+                        PHP post: {{ ini_get('post_max_size') }}.
+                    </p>
+                </div>
+            @endif
 
             {{-- Form upload --}}
             <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
